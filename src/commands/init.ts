@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2025 SubLang contributors <https://github.com/sublang-xyz>
 
-import { basename } from 'node:path';
+import { basename, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { findGitRoot } from '../utils/git.js';
 import { createSpecsStructure } from '../utils/fs.js';
 
@@ -9,21 +10,29 @@ import { createSpecsStructure } from '../utils/fs.js';
  * Initialize the iteron specs directory structure.
  *
  * Behavior:
- * - If inside a git repo: creates specs/ at the git root
- * - If not in a git repo: creates specs/ in current directory
+ * - If path provided: use that directory (must exist)
+ * - Else if inside a git repo: creates specs/ at the git root
+ * - Else: creates specs/ in current directory
  */
-export async function initCommand(): Promise<void> {
-  const cwd = process.cwd();
+export async function initCommand(targetPath?: string): Promise<void> {
+  let basePath: string;
 
-  // Determine base path
-  const gitRoot = findGitRoot(cwd);
-  const basePath = gitRoot ?? cwd;
-
-  // Provide context to user
-  if (gitRoot) {
-    console.log(`Git repository detected at: ${gitRoot}`);
+  if (targetPath) {
+    basePath = resolve(targetPath);
+    if (!existsSync(basePath)) {
+      console.error(`Error: path does not exist: ${basePath}`);
+      process.exit(1);
+    }
   } else {
-    console.log('Not inside a git repository, using current directory');
+    const cwd = process.cwd();
+    const gitRoot = findGitRoot(cwd);
+    basePath = gitRoot ?? cwd;
+
+    if (gitRoot) {
+      console.log(`Git repository detected at: ${gitRoot}`);
+    } else {
+      console.log('Not inside a git repository, using current directory');
+    }
   }
 
   console.log(`Initializing iteron specs in: ${basePath}`);

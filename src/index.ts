@@ -15,6 +15,7 @@ program
 program
   .command('init')
   .description('Initialize iteron specs directory structure')
+  .argument('[path]', 'target directory (defaults to current directory)')
   .action(initCommand);
 
 program.parse();
