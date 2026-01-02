@@ -1,0 +1,38 @@
+{
+  "name": "iteron",
+  "version": "0.1.0",
+  "description": "Delegate dev loops to Claude Code + Codex CLI. Iterates for hours. No API keys.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "iteron": "./bin/iteron.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "cli",
+    "claude",
+    "codex",
+    "development",
+    "iteration",
+    "ai"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ]
+}
