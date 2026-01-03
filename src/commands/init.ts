@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2025 SubLang contributors <https://github.com/sublang-xyz>
 
 import { basename, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { findGitRoot } from '../utils/git.js';
 import { createSpecsStructure } from '../utils/fs.js';
 
@@ -21,6 +21,10 @@ export async function initCommand(targetPath?: string): Promise<void> {
     basePath = resolve(targetPath);
     if (!existsSync(basePath)) {
       console.error(`Error: path does not exist: ${basePath}`);
+      process.exit(1);
+    }
+    if (!statSync(basePath).isDirectory()) {
+      console.error(`Error: path is not a directory: ${basePath}`);
       process.exit(1);
     }
   } else {

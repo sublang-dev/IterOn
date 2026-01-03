@@ -15,7 +15,7 @@ program
 program
   .command('init')
   .description('Initialize iteron specs directory structure')
-  .argument('[path]', 'target directory (defaults to current directory)')
+  .argument('[path]', 'target directory (defaults to git root or cwd)')
   .action(initCommand);
 
 program.parse();
