@@ -4,7 +4,7 @@
 import { basename, resolve } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
 import { findGitRoot } from '../utils/git.js';
-import { createSpecsStructure } from '../utils/fs.js';
+import { createSpecsStructure, copyTemplates } from '../utils/fs.js';
 
 /**
  * Initialize the iteron specs directory structure.
@@ -52,6 +52,17 @@ export async function initCommand(targetPath?: string): Promise<void> {
       const status = result.created ? '(created)' : '(already exists)';
       const dirName = basename(result.path);
       console.log(`    ${dirName}/ ${status}`);
+    }
+
+    // Copy template files
+    const copiedFiles = await copyTemplates(specsDir);
+    if (copiedFiles.length > 0) {
+      console.log('\nTemplate files:');
+      for (const result of copiedFiles) {
+        const status = result.copied ? '(created)' : '(already exists)';
+        const relativePath = result.path.slice(specsDir.length + 1);
+        console.log(`  ${relativePath} ${status}`);
+      }
     }
 
     console.log('\nIteron initialized successfully!');
