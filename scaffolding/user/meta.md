@@ -1,12 +1,12 @@
 # META: Specification Format
 
-This component defines how to read specifications using [GEARS](https://sublang.xyz/ref/gears-ai-ready-spec-syntax) syntax, per [DR-000](../decisions/000-initial-specs-structure.md#dr-000-initial-specs-structure).
+This component defines how to read specifications using GEARS syntax, per [DR-000](../decisions/000-initial-specs-structure.md#dr-000-initial-specs-structure).
 
 ## GEARS Syntax
 
 ### META-001
 
-Each specification shall use the GEARS pattern:
+Each specification shall use the [GEARS](https://sublang.xyz/ref/gears-ai-ready-spec-syntax) pattern:
 
 ```text
 [Where <static precondition(s)>] [While <stateful precondition(s)>] [When <trigger>] The <subject> shall <behavior>.

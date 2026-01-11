@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Projects need a standardized structure for specifications to support iterative development and collaboration between AI and humans.
+Projects need a standardized structure and format for specifications to support iterative development and collaboration between AI and humans.
 
 ## Decision
 
@@ -16,22 +16,31 @@ Use `iteron init` to create:
 specs/
 ├── decisions/    # Decision Records (DRs)
 ├── iterations/   # Iteration Records (IRs)
-├── user/         # User-facing specifications - what the system does
-├── dev/          # System internal specs for development - how the system is built
-└── tests/        # Test case specifications
+├── user/         # User-facing specs
+├── dev/          # Development specs
+└── test/         # Verification specs
 ```
 
-### Initial Directories
+### Records
 
 | Directory | Format | Naming |
 | --------- | ------- | ------ |
 | decisions/ | [ADR](https://adr.github.io/) (Architectural Decision Record) | `NNN-<kebab-case-title>.md` |
 | iterations/ | Goal, deliverables, tasks, verification | `NNN-<kebab-case-title>.md` |
-| user/ | [GEARS](https://sublang.xyz/ref/gears-ai-ready-spec-syntax) | `<kebab-case-component>.md` |
-| dev/ | GEARS | `<kebab-case-component>.md` |
-| tests/ | GEARS | `<kebab-case-feature>.md` |
 
-GEARS syntax pattern:
+### Specs
+
+Spec files follow [GEARS](https://sublang.xyz/ref/gears-ai-ready-spec-syntax) syntax and can be organized hierarchically. Suggested top-level groups:
+
+| Group | Purpose |
+| ----- | ------- |
+| user/ | What the system does |
+| dev/ | How the system is built |
+| test/ | Verification criteria |
+
+Naming: `<kebab-case-name>.md`
+
+GEARS pattern:
 
 ```text
 [Where <static precondition(s)>] [While <stateful precondition(s)>] [When <trigger>] The <subject> shall <behavior>.
@@ -44,9 +53,7 @@ GEARS syntax pattern:
 | When | Trigger event (at most one) |
 | shall | Required behavior |
 
-Test cases map Given-When-Then: Given → Where+While, When → When, Then → shall.
-
-Subdirectories optional for user/, dev/, and tests/.
+Test specs map Given-When-Then: Given → Where+While, When → When, Then → shall.
 
 ### Initial Files
 
@@ -57,10 +64,10 @@ Subdirectories optional for user/, dev/, and tests/.
 | `user/meta.md` | GEARS syntax guide |
 | `dev/git.md` | Git workflow rules |
 | `dev/style.md` | Authoring conventions |
-| `tests/spdx-headers.md` | SPDX headers verification |
+| `test/spdx-headers.md` | SPDX headers verification |
 
 ## Consequences
 
-- Consistent structure across iterations
-- Clear separation of user-facing and internal specs
-- Test cases decoupled from iterations for traceability
+- Consistent structure and format accross iterations
+- Clear separation of records and specs
+- Specs can be grouped hierarchically as needed
