@@ -68,6 +68,6 @@ Test specs map Given-When-Then: Given → Where+While, When → When, Then → s
 
 ## Consequences
 
-- Consistent structure and format accross iterations
+- Consistent structure and format across iterations
 - Clear separation of records and specs
 - Specs can be grouped hierarchically as needed

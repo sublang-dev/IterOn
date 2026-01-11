@@ -12,6 +12,8 @@ Each specification shall use the [GEARS](https://sublang.xyz/ref/gears-ai-ready-
 [Where <static precondition(s)>] [While <stateful precondition(s)>] [When <trigger>] The <subject> shall <behavior>.
 ```
 
+Clause keywords and punctuation follow natural language conventions.
+
 | Clause | Purpose | Example |
 | ------ | ------- | ------- |
 | Where | Static preconditions (features, config) | Where debug mode is enabled |

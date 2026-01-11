@@ -6,7 +6,7 @@ This component defines authoring conventions, per [DR-000](../decisions/000-init
 
 ### STYLE-001
 
-Each spec file shall be named `<kebab-name>.md`.
+Each spec file shall be named `<kebab-case-name>.md`.
 
 ### STYLE-002
 
