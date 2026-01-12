@@ -45,6 +45,10 @@ Specs shall cite decisions when deriving from them.
 
 Specs shall not cite iterations.
 
+### STYLE-011
+
+Test specs shall not be cited by other specs.
+
 ## SPDX Headers
 
 ### STYLE-009
