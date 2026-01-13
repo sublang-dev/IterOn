@@ -7,9 +7,11 @@
 [![Node.js](https://img.shields.io/node/v/@sublang-xyz/iteron)](https://nodejs.org/)
 [![CI](https://github.com/sublang-xyz/iteron/actions/workflows/ci.yml/badge.svg)](https://github.com/sublang-xyz/iteron/actions/workflows/ci.yml)
 
-Delegate dev loops to Claude Code, Codex CLI, or any AI coder. Iterates for hours. No API keys.
+Delegate dev loops to Claude Code, Codex CLI, or any AI coder. Runs autonomously for hours. No costly API keys.
 
-> **Status:** Stage 1 complete - spec scaffolding ready.
+> **Status:**
+>
+> - [x] Stage 1 - spec scaffolding ready. Get started to adopt the [GEARS](https://sublang.xyz/ref/gears-ai-ready-spec-syntax), the AI-ready spec syntax, for your projects.
 
 ## Quick Start
 
@@ -18,7 +20,7 @@ npm install -g @sublang-xyz/iteron
 iteron init
 ```
 
-Review the example `specs/iterations/000-spdx-headers.md` (and modify copyright text), then prompt your AI coding agent:
+Review the sample iteration `specs/iterations/000-spdx-headers.md` and update the copyright text, then prompt your AI coding agent:
 
 ```text
 Complete Iteration #0
