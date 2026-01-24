@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-01-25
+
 ### Changed
 
 - **BREAKING:** Renamed `iteron init` command to `iteron scaffold` to reserve `init` for future full project initialization
+- Updated copyright URL to www.sublang.xyz in SPDX headers
+- Updated AI co-author email to cligent@sublang.xyz in git spec
 
 ## [0.1.1] - 2025-01-14
 
@@ -28,5 +32,6 @@ Install with `npm install -g @sublang-xyz/iteron`.
 - GitHub Actions CI workflow
 - Project specifications structure
 
-[Unreleased]: https://github.com/sublang-xyz/IterOn/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/sublang-xyz/IterOn/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/sublang-xyz/IterOn/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/sublang-xyz/IterOn/releases/tag/v0.1.1

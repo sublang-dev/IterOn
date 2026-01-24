@@ -25,9 +25,11 @@ All notable changes shall be documented in `CHANGELOG.md` following the [Keep a 
 
 Before creating a release tag, the developer/agent shall:
 
-1. Add a new version section to `CHANGELOG.md` with the release date
-2. Move items from `[Unreleased]` to the new version section
-3. Update the comparison links at the bottom of the file
+1. Review all commits since the last release (`git log <last-tag>..HEAD`)
+2. Ensure all notable changes are documented in `[Unreleased]`
+3. Add a new version section to `CHANGELOG.md` with the release date
+4. Move items from `[Unreleased]` to the new version section
+5. Update the comparison links at the bottom of the file
 
 ### RELEASE-005
 
@@ -41,7 +43,7 @@ Releases shall be triggered by pushing a git tag matching the pattern `v*` (e.g.
 
 ### RELEASE-007
 
-The release workflow shall:
+The release workflow on GitHub shall:
 
 1. Verify tag version matches `package.json` version
 2. Build and validate the package

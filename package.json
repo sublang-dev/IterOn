@@ -1,6 +1,6 @@
 {
   "name": "@sublang-xyz/iteron",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Delegate dev loops to Claude Code + Codex CLI. Iterates for hours. No API keys.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
