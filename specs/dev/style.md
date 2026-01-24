@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- SPDX-FileCopyrightText: 2025 SubLang International <https://github.com/sublang-xyz> -->
+<!-- SPDX-FileCopyrightText: 2025 SubLang International <https://www.sublang.xyz> -->
 
 # STYLE: Authoring Conventions
 
@@ -69,10 +69,10 @@ Source code files (TypeScript, JavaScript, specs) shall use Apache-2.0 headers:
 
 ```typescript
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 SubLang International <https://github.com/sublang-xyz>
+// SPDX-FileCopyrightText: 2025 SubLang International <https://www.sublang.xyz>
 ```
 
 ```markdown
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- SPDX-FileCopyrightText: 2025 SubLang International <https://github.com/sublang-xyz> -->
+<!-- SPDX-FileCopyrightText: 2025 SubLang International <https://www.sublang.xyz> -->
 ```

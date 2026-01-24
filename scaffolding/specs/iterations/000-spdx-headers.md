@@ -31,19 +31,19 @@ Add SPDX headers (license and copyright info) to applicable files.
    >
    > ```typescript
    > // SPDX-License-Identifier: Apache-2.0
-   > // SPDX-FileCopyrightText: 2026 SubLang International <https://github.com/sublang-xyz>
+   > // SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.xyz>
    > ```
    >
    > ```markdown
    > <!-- SPDX-License-Identifier: Apache-2.0 -->
-   > <!-- SPDX-FileCopyrightText: 2026 SubLang International <https://github.com/sublang-xyz> -->
+   > <!-- SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.xyz> -->
    > ```
    >
    > **Contents** (README, docs, blogs, etc.):
    >
    > ```markdown
    > <!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
-   > <!-- SPDX-FileCopyrightText: 2026 SubLang International <https://github.com/sublang-xyz> -->
+   > <!-- SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.xyz> -->
    > ```
 
 ## Acceptance Criteria

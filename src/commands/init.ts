@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 SubLang International <https://github.com/sublang-xyz>
+// SPDX-FileCopyrightText: 2025 SubLang International <https://www.sublang.xyz>
 
 import { basename, resolve } from 'node:path';
 import { existsSync, statSync } from 'node:fs';

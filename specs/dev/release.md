@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- SPDX-FileCopyrightText: 2026 SubLang International <https://github.com/sublang-xyz> -->
+<!-- SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.xyz> -->
 
 # RELEASE: Release Workflow
 
