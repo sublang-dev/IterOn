@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.ai>
+
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+
+export const CONFIG_DIR = join(homedir(), '.iteron');
+export const CONFIG_PATH = join(CONFIG_DIR, 'config.toml');
+export const ENV_PATH = join(CONFIG_DIR, '.env');
+
+export const DEFAULT_IMAGE = 'ghcr.io/sublang/iteron-sandbox:latest';
+export const DEFAULT_CONTAINER_NAME = 'iteron-sandbox';
+export const DEFAULT_MEMORY = '16g';
+export const VOLUME_NAME = 'iteron-data';
+
+export interface ContainerConfig {
+  name: string;
+  image: string;
+  memory: string;
+}
+
+export interface AgentConfig {
+  binary: string;
+}
+
+export interface IteronConfig {
+  container: ContainerConfig;
+  agents: Record<string, AgentConfig>;
+}
+
+async function loadToml(): Promise<{ stringify: (obj: Record<string, unknown>) => string; parse: (str: string) => Record<string, unknown> }> {
+  return await import('smol-toml');
+}
+
+export function defaultConfig(image?: string): IteronConfig {
+  return {
+    container: {
+      name: DEFAULT_CONTAINER_NAME,
+      image: image ?? DEFAULT_IMAGE,
+      memory: DEFAULT_MEMORY,
+    },
+    agents: {
+      'claude-code': { binary: 'claude' },
+      'codex-cli': { binary: 'codex' },
+      'gemini-cli': { binary: 'gemini' },
+      opencode: { binary: 'opencode' },
+    },
+  };
+}
+
+export async function ensureConfigDir(): Promise<void> {
+  if (!existsSync(CONFIG_DIR)) {
+    await mkdir(CONFIG_DIR, { recursive: true });
+  }
+}
+
+export async function writeConfig(image?: string): Promise<boolean> {
+  await ensureConfigDir();
+  if (existsSync(CONFIG_PATH)) {
+    return false;
+  }
+  const { stringify } = await loadToml();
+  const config = defaultConfig(image);
+  const toml = stringify(config as unknown as Record<string, unknown>);
+  await writeFile(CONFIG_PATH, toml, 'utf-8');
+  return true;
+}
+
+export async function readConfig(): Promise<IteronConfig> {
+  if (!existsSync(CONFIG_PATH)) {
+    throw new Error('Config not found. Run "iteron init" first.');
+  }
+  const { parse } = await loadToml();
+  const content = await readFile(CONFIG_PATH, 'utf-8');
+  return parse(content) as unknown as IteronConfig;
+}
+
+const ENV_TEMPLATE = `# API keys for headless agent authentication
+ANTHROPIC_API_KEY=
+CODEX_API_KEY=
+GEMINI_API_KEY=
+`;
+
+export async function writeEnvTemplate(): Promise<boolean> {
+  await ensureConfigDir();
+  if (existsSync(ENV_PATH)) {
+    return false;
+  }
+  await writeFile(ENV_PATH, ENV_TEMPLATE, 'utf-8');
+  return true;
+}

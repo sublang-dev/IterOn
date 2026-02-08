@@ -30,11 +30,11 @@ Implement `iteron init`, `iteron start`, and `iteron stop` commands that automat
 Per [DR-002 §1](../decisions/002-iteron-cli-commands.md#1-iteron-init):
 
 - Detect OS (macOS, Linux, Windows-WSL2) and architecture (amd64, arm64)
-- Install Podman via system package manager:
-  - macOS: Homebrew (`brew install podman`)
-  - Linux: `apt install podman` (Debian/Ubuntu) or `dnf install podman` (Fedora/RHEL)
-  - WSL2: `apt install podman` inside the WSL distribution
-- Initialize `podman machine` on macOS/Windows (4 GB RAM, 2 vCPU minimum)
+- Install Podman with user confirmation (show command, prompt `[Y/n]`, `--yes` to skip):
+  - macOS: official `.pkg` installer downloaded from GitHub releases (recommended by Podman; works without Homebrew or MacPorts)
+  - Linux: auto-detect native package manager (`apt-get`, `dnf`, `zypper`, `pacman`, `apk`)
+  - WSL2: same as Linux (native Podman, no `podman machine` needed)
+- Initialize `podman machine` on macOS (4 GB RAM, 2 vCPU minimum)
 - Verify rootless mode is enabled (`podman info --format '{{.Host.Security.Rootless}}'`)
 - Pull multi-arch OCI image from [IR-001](001-oci-sandbox-image.md)
 - Create `iteron-data` Podman volume
@@ -50,7 +50,8 @@ Per [DR-001 §1](../decisions/001-sandbox-architecture.md#1-oci-container-as-the
 - Read settings from `~/.iteron/config.toml`
 - Start `podman machine` if needed (macOS/Windows) and not already running
 - Launch container with security hardening:
-  ```
+
+  ```shell
   podman run -d --name iteron-sandbox \
     --cap-drop ALL \
     --security-opt no-new-privileges \
@@ -62,6 +63,7 @@ Per [DR-001 §1](../decisions/001-sandbox-architecture.md#1-oci-container-as-the
     --init \
     <image> sleep infinity
   ```
+
 - Idempotent: if container already running, exit 0 with message
 
 ### 4. `iteron stop`
@@ -109,8 +111,8 @@ GEMINI_API_KEY=
 
 | # | Test | Expected |
 | --- | --- | --- |
-| 1 | `iteron init` on clean macOS | Installs Podman via Homebrew, inits machine, pulls image, creates volume and config files |
-| 2 | `iteron init` on clean Ubuntu | Installs Podman via apt, pulls image, creates volume and config files |
+| 1 | `iteron init` on clean macOS | Downloads and installs Podman `.pkg`, inits machine, pulls image, creates volume and config files |
+| 2 | `iteron init` on clean Ubuntu | Installs Podman via `apt-get`, pulls image, creates volume and config files |
 | 3 | `iteron init` run twice | Second run skips completed steps, exits 0, prints what was skipped |
 | 4 | `iteron start` then `podman inspect iteron-sandbox --format '{{.HostConfig.CapDrop}}'` | Output contains `ALL` |
 | 5 | `iteron start` then `podman inspect iteron-sandbox --format '{{.HostConfig.ReadonlyRootfs}}'` | `true` |
