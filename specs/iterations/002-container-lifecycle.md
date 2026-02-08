@@ -9,12 +9,12 @@ Implement `iteron init`, `iteron start`, and `iteron stop` commands that automat
 
 ## Deliverables
 
-- [ ] CLI framework with `iteron --help` and `iteron --version`
-- [ ] `iteron init`: install Podman, pull image, create volume and config
-- [ ] `iteron start`: launch container with security hardening and `.env` loading
-- [ ] `iteron stop`: graceful container shutdown
-- [ ] `~/.iteron/config.toml` schema and generation
-- [ ] `~/.iteron/.env` template generation
+- [x] CLI framework with `iteron --help` and `iteron --version`
+- [x] `iteron init`: install Podman, pull image, create volume and config
+- [x] `iteron start`: launch container with security hardening and `.env` loading
+- [x] `iteron stop`: graceful container shutdown
+- [x] `~/.iteron/config.toml` schema and generation
+- [x] `~/.iteron/.env` template generation
 
 ## Tasks
 

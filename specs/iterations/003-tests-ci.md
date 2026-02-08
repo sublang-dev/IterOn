@@ -9,13 +9,13 @@ Add automated unit and integration tests for the CLI utilities and container lif
 
 ## Deliverables
 
-- [ ] Vitest test framework configured with coverage
-- [ ] Unit tests for `platform`, `config`, `podman`, and `git` utilities
-- [ ] Integration tests for `init`, `start`, `stop` with real Podman
-- [ ] CI: unit tests on Node 20/22, integration tests on Ubuntu with Podman
-- [ ] CI: integration tests against prebuilt sandbox image on Ubuntu
-- [ ] `ITERON_CONFIG_DIR` env var override for test isolation
-- [ ] `ITERON_TEST_IMAGE` env var override for CI against real sandbox image
+- [x] Vitest test framework configured with coverage
+- [x] Unit tests for `platform`, `config`, `podman`, and `git` utilities
+- [x] Integration tests for `init`, `start`, `stop` with real Podman
+- [x] CI: unit tests on Node 20/22, integration tests on Ubuntu with Podman
+- [x] CI: integration tests against prebuilt sandbox image on Ubuntu
+- [x] `ITERON_CONFIG_DIR` env var override for test isolation
+- [x] `ITERON_TEST_IMAGE` env var override for CI against real sandbox image
 
 ## Tasks
 
