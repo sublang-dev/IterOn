@@ -31,6 +31,7 @@ function containerExec(cmd: string[]): string {
 }
 
 const HAS_PODMAN = podmanAvailable();
+let hasTmux = false;
 
 async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['stop', '-t', '0', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
@@ -77,6 +78,7 @@ binary = "opencode"
 
   // Install tmux in alpine (needed for session tests)
   try { containerExec(['apk', 'add', '--no-cache', 'tmux']); } catch {}
+  try { containerExec(['tmux', '-V']); hasTmux = true; } catch {}
 });
 
 afterAll(async () => {
@@ -87,8 +89,9 @@ afterAll(async () => {
 });
 
 describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, sequential: true }, () => {
-  // IR-004 test 1: `iteron open` → bash in ~, tmux shows bash:~
-  it('opens shell in home directory', async () => {
+  // IR-004 test 1: `iteron open` → bash in ~, tmux shows bash@~
+  it('opens shell in home directory', async ({ skip }) => {
+    if (!hasTmux) skip();
     // Create a tmux session directly (can't use interactive open in test)
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@~', '-c', '/home/iteron', 'bash']);
     const sessions = containerExec(['tmux', 'list-sessions', '-F', '#{session_name}']);
@@ -97,8 +100,9 @@ describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, se
     try { containerExec(['tmux', 'kill-session', '-t', 'bash@~']); } catch {}
   });
 
-  // IR-004 test 2: `iteron open myproject` → creates ~/myproject, bash:myproject
-  it('creates workspace directory and session', async () => {
+  // IR-004 test 2: `iteron open myproject` → creates ~/myproject, bash@myproject
+  it('creates workspace directory and session', async ({ skip }) => {
+    if (!hasTmux) skip();
     containerExec(['mkdir', '-p', '/home/iteron/myproject']);
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@myproject', '-c', '/home/iteron/myproject', 'bash']);
 
@@ -117,7 +121,8 @@ describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, se
   // IR-004 test 7 (partial): -A reattach requires interactive terminal;
   // full verification is manual (see spec). This test confirms that tmux
   // rejects duplicate session names, proving -A is necessary.
-  it('rejects duplicate session name without -A flag', async () => {
+  it('rejects duplicate session name without -A flag', async ({ skip }) => {
+    if (!hasTmux) skip();
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@reattach-test', 'bash']);
 
     // Creating the same session without -A fails (duplicate name)
@@ -135,7 +140,8 @@ describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, se
   });
 
   // IR-004 test 8: parallel sessions in different workspaces
-  it('supports parallel sessions in different workspaces', async () => {
+  it('supports parallel sessions in different workspaces', async ({ skip }) => {
+    if (!hasTmux) skip();
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@proj-a', 'bash']);
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@proj-b', 'bash']);
 
@@ -163,7 +169,8 @@ describe.skipIf(!HAS_PODMAN)('iteron ls (integration)', { timeout: 120_000, sequ
   }
 
   // IR-004 test 9: lsCommand end-to-end tree output
-  it('lsCommand prints tree with sessions grouped by workspace', async () => {
+  it('lsCommand prints tree with sessions grouped by workspace', async ({ skip }) => {
+    if (!hasTmux) skip();
     setupLsSessions();
 
     const { lsCommand } = await import('../../src/commands/ls.js');
@@ -179,7 +186,8 @@ describe.skipIf(!HAS_PODMAN)('iteron ls (integration)', { timeout: 120_000, sequ
   });
 
   // IR-004 test 10: lsCommand --json end-to-end
-  it('lsCommand --json outputs valid session objects', async () => {
+  it('lsCommand --json outputs valid session objects', async ({ skip }) => {
+    if (!hasTmux) skip();
     setupLsSessions();
 
     const { lsCommand } = await import('../../src/commands/ls.js');
@@ -205,7 +213,8 @@ describe.skipIf(!HAS_PODMAN)('iteron ls (integration)', { timeout: 120_000, sequ
 
 describe.skipIf(!HAS_PODMAN)('iteron rm (integration)', { timeout: 120_000, sequential: true }, () => {
   // IR-004 test 11/12: rm kills sessions and removes directory
-  it('kills sessions and removes workspace directory', async () => {
+  it('kills sessions and removes workspace directory', async ({ skip }) => {
+    if (!hasTmux) skip();
     // Setup
     containerExec(['mkdir', '-p', '/home/iteron/rm-test']);
     containerExec(['tmux', 'new-session', '-d', '-s', 'bash@rm-test', '-c', '/home/iteron/rm-test', 'bash']);
