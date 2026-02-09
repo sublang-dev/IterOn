@@ -44,7 +44,7 @@ export async function startCommand(): Promise<void> {
       '--security-opt', 'no-new-privileges',
       '--read-only',
       '--tmpfs', '/tmp',
-      '-v', 'iteron-data:/home/iteron',
+      '-v', 'iteron-data:/home/iteron:U',
       '--env-file', ENV_PATH,
       '--memory', memory,
       '--init',

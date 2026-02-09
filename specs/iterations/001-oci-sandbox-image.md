@@ -46,7 +46,7 @@ Install each agent and verify its binary is on `PATH`:
 | `gemini-cli` | `gemini` | npm: `@google/gemini-cli` |
 | `opencode` | `opencode` | npm: `opencode-ai` |
 
-`iteron open claude-code myproject` resolves to binary `claude` and creates tmux session `claude-code:myproject`. Verify exact binary names during implementation — upstream projects may change them.
+`iteron open claude-code myproject` resolves to binary `claude` and creates tmux session `claude-code@myproject`. Verify exact binary names during implementation — upstream projects may change them.
 
 ### 3. Multi-arch build
 

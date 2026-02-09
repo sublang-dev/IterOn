@@ -17,42 +17,42 @@ describe('resolveArgs', () => {
   it('0 args → shell in home', () => {
     const result = resolveArgs([], agents);
     expect(result.binary).toBe('bash');
-    expect(result.sessionName).toBe('bash:~');
+    expect(result.sessionName).toBe('bash@~');
     expect(result.workDir).toBe('/home/iteron');
   });
 
   it('1 arg matching agent → agent in home', () => {
     const result = resolveArgs(['claude-code'], agents);
     expect(result.binary).toBe('claude');
-    expect(result.sessionName).toBe('claude-code:~');
+    expect(result.sessionName).toBe('claude-code@~');
     expect(result.workDir).toBe('/home/iteron');
   });
 
   it('1 arg not matching agent → shell in workspace', () => {
     const result = resolveArgs(['myproject'], agents);
     expect(result.binary).toBe('bash');
-    expect(result.sessionName).toBe('bash:myproject');
+    expect(result.sessionName).toBe('bash@myproject');
     expect(result.workDir).toBe('/home/iteron/myproject');
   });
 
   it('2 args with known agent → agent in workspace', () => {
     const result = resolveArgs(['claude-code', 'myproject'], agents);
     expect(result.binary).toBe('claude');
-    expect(result.sessionName).toBe('claude-code:myproject');
+    expect(result.sessionName).toBe('claude-code@myproject');
     expect(result.workDir).toBe('/home/iteron/myproject');
   });
 
   it('2 args with unknown command → raw command in workspace', () => {
     const result = resolveArgs(['vim', 'myproject'], agents);
     expect(result.binary).toBe('vim');
-    expect(result.sessionName).toBe('vim:myproject');
+    expect(result.sessionName).toBe('vim@myproject');
     expect(result.workDir).toBe('/home/iteron/myproject');
   });
 
   it('2 args with ~ workspace → agent in home', () => {
     const result = resolveArgs(['claude-code', '~'], agents);
     expect(result.binary).toBe('claude');
-    expect(result.sessionName).toBe('claude-code:~');
+    expect(result.sessionName).toBe('claude-code@~');
     expect(result.workDir).toBe('/home/iteron');
   });
 
@@ -71,6 +71,16 @@ describe('resolveArgs', () => {
   it('rejects path with separators as workspace', () => {
     expect(() => resolveArgs(['foo/bar'], agents)).toThrow('separator');
     expect(() => resolveArgs(['vim', 'a/b'], agents)).toThrow('separator');
+  });
+
+  it('rejects command containing @ (session delimiter)', () => {
+    expect(() => resolveArgs(['foo@bar', 'ws'], agents)).toThrow('@');
+  });
+
+  it('rejects configured agent name containing @', () => {
+    const badAgents = { ...agents, 'bad@agent': { binary: 'bad' } };
+    expect(() => resolveArgs(['bad@agent'], badAgents)).toThrow('@');
+    expect(() => resolveArgs(['bad@agent', 'ws'], badAgents)).toThrow('@');
   });
 });
 
@@ -104,6 +114,10 @@ describe('validateWorkspace', () => {
   it('rejects paths with separators', () => {
     expect(validateWorkspace('foo/bar')).toContain('separator');
     expect(validateWorkspace('foo\\bar')).toContain('separator');
+  });
+
+  it('rejects @ (session delimiter)', () => {
+    expect(validateWorkspace('ws@name')).toContain('@');
   });
 });
 

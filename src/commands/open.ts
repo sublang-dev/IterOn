@@ -29,7 +29,7 @@ export function resolveArgs(
   if (args.length === 0) {
     return {
       binary: defaultShell,
-      sessionName: `${defaultShell}:~`,
+      sessionName: `${defaultShell}@~`,
       workDir: CONTAINER_HOME,
     };
   }
@@ -38,10 +38,13 @@ export function resolveArgs(
     const arg = args[0];
     const agent = agents[arg];
     if (agent) {
+      if (arg.includes('@')) {
+        throw new Error('Agent name must not contain "@" (reserved as session delimiter).');
+      }
       // Known agent → run in home
       return {
         binary: agent.binary,
-        sessionName: `${arg}:~`,
+        sessionName: `${arg}@~`,
         workDir: CONTAINER_HOME,
       };
     }
@@ -50,7 +53,7 @@ export function resolveArgs(
     if (err) throw new Error(err);
     return {
       binary: defaultShell,
-      sessionName: `${defaultShell}:${arg}`,
+      sessionName: `${defaultShell}@${arg}`,
       workDir: `${CONTAINER_HOME}/${arg}`,
     };
   }
@@ -62,6 +65,9 @@ export function resolveArgs(
     if (err) throw new Error(err);
   }
   const agent = agents[commandArg];
+  if (commandArg.includes('@')) {
+    throw new Error('Command name must not contain "@" (reserved as session delimiter).');
+  }
   const binary = agent ? agent.binary : commandArg;
   const commandName = commandArg; // Use the original name for session
   const location = workspace === '~' ? '~' : workspace;
@@ -69,7 +75,7 @@ export function resolveArgs(
 
   return {
     binary,
-    sessionName: `${commandName}:${location}`,
+    sessionName: `${commandName}@${location}`,
     workDir,
   };
 }

@@ -37,7 +37,7 @@ iteron <command> [options] [args]
 - Agent state: `~/.claude/`, `~/.codex/`, `~/.gemini/`, `~/.opencode/`
 - Home directory: `~` (can run agents/shells directly here)
 - Workspaces: `~/<workspace>` (e.g., `~/myproject`, `~/backend`, `~/frontend`)
-- Each session gets a unique tmux session name: `<command>:<location>` (e.g., `claude-code:myproject`, `bash:~`, `vim:backend`)
+- Each session gets a unique tmux session name: `<command>@<location>` (e.g., `claude-code@myproject`, `bash@~`, `vim@backend`). The `@` delimiter is used because tmux reserves `:` as a session-window separator and silently replaces it with `_`.
 - Everything persists across container restarts in one volume
 
 ### Core Commands

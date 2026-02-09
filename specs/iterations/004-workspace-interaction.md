@@ -28,7 +28,7 @@ Per [DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-agent-wor
 - Agent name resolution: look up agent name in `config.toml` `[agents.<name>]` to get `binary` value (see [IR-001 §2](001-oci-sandbox-image.md#2-agent-runtime-installation-and-name-mapping) and [IR-002 §5](002-container-lifecycle.md#5-config-file-schema)). If not found in config, use the argument as-is (raw command).
 - Arguments after `--` are passed to the resolved command
 - Wraps: `podman exec -it iteron-sandbox tmux new-session -A -s <session> -c <path> <binary> [<args>]`
-- Session naming per [DR-002 Workspace Model](../decisions/002-iteron-cli-commands.md#workspace-model): `<agent-name>:<location>` (e.g., `claude-code:myproject`). For non-agent commands, use the command itself (e.g., `bash:~`, `vim:backend`).
+- Session naming per [DR-002 Workspace Model](../decisions/002-iteron-cli-commands.md#workspace-model): `<agent-name>@<location>` (e.g., `claude-code@myproject`). For non-agent commands, use the command itself (e.g., `bash@~`, `vim@backend`). The `@` delimiter is used because tmux reserves `:` and silently replaces it with `_`.
 - Create workspace directory inside container if it doesn't exist
 - If session already exists, `-A` attaches to it (no duplicate launch)
 - Error with clear message if container is not running
@@ -38,7 +38,7 @@ Per [DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-agent-wor
 Per [DR-002 §5](../decisions/002-iteron-cli-commands.md#5-iteron-ls):
 
 - Query tmux sessions from container (`podman exec iteron-sandbox tmux list-sessions -F '#{session_name} #{session_attached} #{session_activity}'`)
-- Parse session names (`<command>:<location>`) to extract command and location
+- Parse session names (`<command>@<location>`) to extract command and location
 - Scan workspace directories under `/home/iteron` (exclude dotfiles)
 - Display tree format grouping by workspace:
 
@@ -69,17 +69,17 @@ Per [DR-002 §6](../decisions/002-iteron-cli-commands.md#6-iteron-rm-workspace):
 
 | # | Test | Expected |
 | --- | --- | --- |
-| 1 | `iteron open` | Attaches to bash in `~`; `tmux list-sessions` shows `bash:~` |
-| 2 | `iteron open myproject` | Creates `~/myproject`; attaches to `bash:myproject` |
-| 3 | `iteron open claude-code` | Resolves `claude-code` → binary `claude` from config; attaches to `claude-code:~` |
-| 4 | `iteron open claude-code myproject` | Attaches to `claude-code:myproject`; binary is `claude`, cwd is `~/myproject` |
-| 5 | `iteron open claude-code myproject -- --resume` | `tmux list-sessions` shows `claude-code:myproject`; `--resume` passed to `claude` process (verify via `/proc/<pid>/cmdline`) |
-| 6 | `iteron open vim myproject` | `vim` is not in config → runs `vim` as-is; session `vim:myproject` |
-| 7 | Run `iteron open claude-code myproject`, detach (Ctrl-B D), run `iteron open claude-code myproject` again | Reattaches to same session; `tmux list-sessions` still shows exactly one `claude-code:myproject` |
-| 8 | Run `iteron open claude-code ~` and `iteron open claude-code myproject` in parallel | Two separate sessions: `claude-code:~` and `claude-code:myproject` |
-| 9 | `iteron ls` with sessions `claude-code:~`, `bash:myproject`, `gemini-cli:backend` running | Tree output groups by location; shows correct attached/detached status and uptime |
+| 1 | `iteron open` | Attaches to bash in `~`; `tmux list-sessions` shows `bash@~` |
+| 2 | `iteron open myproject` | Creates `~/myproject`; attaches to `bash@myproject` |
+| 3 | `iteron open claude-code` | Resolves `claude-code` → binary `claude` from config; attaches to `claude-code@~` |
+| 4 | `iteron open claude-code myproject` | Attaches to `claude-code@myproject`; binary is `claude`, cwd is `~/myproject` |
+| 5 | `iteron open claude-code myproject -- --resume` | `tmux list-sessions` shows `claude-code@myproject`; `--resume` passed to `claude` process (verify via `/proc/<pid>/cmdline`) |
+| 6 | `iteron open vim myproject` | `vim` is not in config → runs `vim` as-is; session `vim@myproject` |
+| 7 | Run `iteron open claude-code myproject`, detach (Ctrl-B D), run `iteron open claude-code myproject` again | Reattaches to same session; `tmux list-sessions` still shows exactly one `claude-code@myproject`. **Manual verification required** — `-A` reattach needs an interactive terminal. |
+| 8 | Run `iteron open claude-code ~` and `iteron open claude-code myproject` in parallel | Two separate sessions: `claude-code@~` and `claude-code@myproject` |
+| 9 | `iteron ls` with sessions `claude-code@~`, `bash@myproject`, `gemini-cli@backend` running | Tree output groups by location; shows correct attached/detached status and uptime |
 | 10 | `iteron ls --json` | Valid JSON; each entry has `session`, `command`, `location`, `attached` (bool), `uptime_seconds` (int) |
-| 11 | `iteron rm myproject` with `claude-code:myproject` running | Prompts "Kill claude-code:myproject? [y/N]"; on `y`: session killed, `~/myproject` removed |
+| 11 | `iteron rm myproject` with `claude-code@myproject` running | Prompts "Kill claude-code@myproject? [y/N]"; on `y`: session killed, `~/myproject` removed |
 | 12 | `iteron rm myproject --force` | Skips prompt; session killed; directory removed |
 | 13 | `iteron rm` (no arg) | Exit non-zero; prints usage error |
 | 14 | `iteron open` when container not running | Exit non-zero; prints "Container iteron-sandbox is not running. Run `iteron start` first." |

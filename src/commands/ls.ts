@@ -27,9 +27,9 @@ export function parseSessions(output: string): SessionInfo[] {
   const now = Math.floor(Date.now() / 1000);
   return output.trim().split('\n').map((line) => {
     const [sessionName, attachedCount, activityEpoch] = line.trim().split(' ');
-    const colonIdx = sessionName.indexOf(':');
-    const command = colonIdx >= 0 ? sessionName.slice(0, colonIdx) : sessionName;
-    const location = colonIdx >= 0 ? sessionName.slice(colonIdx + 1) : '~';
+    const atIdx = sessionName.indexOf('@');
+    const command = atIdx >= 0 ? sessionName.slice(0, atIdx) : sessionName;
+    const location = atIdx >= 0 ? sessionName.slice(atIdx + 1) : '~';
     const attached = parseInt(attachedCount, 10) > 0;
     const uptime_seconds = now - parseInt(activityEpoch, 10);
 

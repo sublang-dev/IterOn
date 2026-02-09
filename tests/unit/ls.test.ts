@@ -22,11 +22,11 @@ describe('parseSessions', () => {
   });
 
   it('parses single session', () => {
-    const output = `claude-code:myproject 1 ${fixedNow - 3600}`;
+    const output = `claude-code@myproject 1 ${fixedNow - 3600}`;
     const result = parseSessions(output);
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
-      session: 'claude-code:myproject',
+      session: 'claude-code@myproject',
       command: 'claude-code',
       location: 'myproject',
       attached: true,
@@ -36,9 +36,9 @@ describe('parseSessions', () => {
 
   it('parses multiple sessions', () => {
     const output = [
-      `claude-code:~ 1 ${fixedNow - 8100}`,
-      `bash:myproject 0 ${fixedNow - 2700}`,
-      `gemini-cli:backend 0 ${fixedNow - 600}`,
+      `claude-code@~ 1 ${fixedNow - 8100}`,
+      `bash@myproject 0 ${fixedNow - 2700}`,
+      `gemini-cli@backend 0 ${fixedNow - 600}`,
     ].join('\n');
     const result = parseSessions(output);
     expect(result).toHaveLength(3);
@@ -53,7 +53,7 @@ describe('parseSessions', () => {
     expect(result[2].attached).toBe(false);
   });
 
-  it('handles session name without colon', () => {
+  it('handles session name without @', () => {
     const output = `orphan 0 ${fixedNow - 60}`;
     const result = parseSessions(output);
     expect(result[0].command).toBe('orphan');
@@ -86,9 +86,9 @@ describe('formatUptime', () => {
 describe('formatTree', () => {
   it('groups sessions by location', () => {
     const sessions = [
-      { session: 'claude-code:~', command: 'claude-code', location: '~', attached: true, uptime_seconds: 8100 },
-      { session: 'bash:~', command: 'bash', location: '~', attached: false, uptime_seconds: 2700 },
-      { session: 'claude-code:myproject', command: 'claude-code', location: 'myproject', attached: false, uptime_seconds: 5400 },
+      { session: 'claude-code@~', command: 'claude-code', location: '~', attached: true, uptime_seconds: 8100 },
+      { session: 'bash@~', command: 'bash', location: '~', attached: false, uptime_seconds: 2700 },
+      { session: 'claude-code@myproject', command: 'claude-code', location: 'myproject', attached: false, uptime_seconds: 5400 },
     ];
     const output = formatTree(sessions, []);
     expect(output).toContain('~/ (home)');
@@ -100,8 +100,8 @@ describe('formatTree', () => {
 
   it('shows home before other workspaces', () => {
     const sessions = [
-      { session: 'bash:myproject', command: 'bash', location: 'myproject', attached: false, uptime_seconds: 60 },
-      { session: 'bash:~', command: 'bash', location: '~', attached: false, uptime_seconds: 60 },
+      { session: 'bash@myproject', command: 'bash', location: 'myproject', attached: false, uptime_seconds: 60 },
+      { session: 'bash@~', command: 'bash', location: '~', attached: false, uptime_seconds: 60 },
     ];
     const output = formatTree(sessions, []);
     const lines = output.split('\n');
@@ -117,7 +117,7 @@ describe('formatTree', () => {
 
   it('merges sessions and workspace dirs', () => {
     const sessions = [
-      { session: 'bash:backend', command: 'bash', location: 'backend', attached: false, uptime_seconds: 60 },
+      { session: 'bash@backend', command: 'bash', location: 'backend', attached: false, uptime_seconds: 60 },
     ];
     const output = formatTree(sessions, ['backend', 'frontend']);
     expect(output).toContain('backend/');
