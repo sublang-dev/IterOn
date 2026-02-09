@@ -7,6 +7,7 @@ import {
   podmanErrorMessage,
 } from '../utils/podman.js';
 import { readConfig } from '../utils/config.js';
+import { parseSessionName } from '../utils/session.js';
 
 export interface SessionInfo {
   session: string;
@@ -25,22 +26,32 @@ export function parseSessions(output: string): SessionInfo[] {
   if (!output.trim()) return [];
 
   const now = Math.floor(Date.now() / 1000);
-  return output.trim().split('\n').map((line) => {
-    const [sessionName, attachedCount, activityEpoch] = line.trim().split(' ');
-    const atIdx = sessionName.indexOf('@');
-    const command = atIdx >= 0 ? sessionName.slice(0, atIdx) : sessionName;
-    const location = atIdx >= 0 ? sessionName.slice(atIdx + 1) : '~';
-    const attached = parseInt(attachedCount, 10) > 0;
-    const uptime_seconds = now - parseInt(activityEpoch, 10);
+  const sessions: SessionInfo[] = [];
+  for (const line of output.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
-    return {
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 3) continue;
+    const [sessionName, attachedCount, activityEpoch] = parts;
+
+    const attachedNum = Number.parseInt(attachedCount, 10);
+    const activityNum = Number.parseInt(activityEpoch, 10);
+    if (!Number.isFinite(attachedNum) || !Number.isFinite(activityNum)) continue;
+
+    const { command, location } = parseSessionName(sessionName);
+    const uptime_seconds = Math.max(0, now - activityNum);
+
+    sessions.push({
       session: sessionName,
       command,
       location,
-      attached,
-      uptime_seconds: Math.max(0, uptime_seconds),
-    };
-  });
+      attached: attachedNum > 0,
+      uptime_seconds,
+    });
+  }
+
+  return sessions;
 }
 
 /**

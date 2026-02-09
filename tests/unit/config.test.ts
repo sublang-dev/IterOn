@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.ai>
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { rm } from 'node:fs/promises';
@@ -82,6 +82,20 @@ describe('writeConfig / readConfig', () => {
   it('readConfig throws when config is missing', async () => {
     const { readConfig } = await import('../../src/utils/config.js');
     await expect(readConfig()).rejects.toThrow(/Config not found/);
+  });
+
+  it('readConfig rejects agent names containing @', async () => {
+    const { readConfig } = await import('../../src/utils/config.js');
+    const badToml = `[container]
+name = "iteron-sandbox"
+image = "ghcr.io/sublang-dev/iteron-sandbox:latest"
+memory = "16g"
+
+[agents."bad@agent"]
+binary = "bad"
+`;
+    writeFileSync(join(tmpDir, 'config.toml'), badToml, 'utf-8');
+    await expect(readConfig()).rejects.toThrow(/Agent name must not contain "@"/);
   });
 });
 

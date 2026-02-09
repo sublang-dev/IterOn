@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { validateSessionToken } from './session.js';
 
 export const CONFIG_DIR = process.env.ITERON_CONFIG_DIR ?? join(homedir(), '.iteron');
 export const CONFIG_PATH = join(CONFIG_DIR, 'config.toml');
@@ -74,7 +75,16 @@ export async function readConfig(): Promise<IteronConfig> {
   }
   const { parse } = await loadToml();
   const content = await readFile(CONFIG_PATH, 'utf-8');
-  return parse(content) as unknown as IteronConfig;
+  const config = parse(content) as unknown as IteronConfig;
+
+  for (const agentName of Object.keys(config.agents ?? {})) {
+    const err = validateSessionToken(agentName, 'Agent name');
+    if (err) {
+      throw new Error(`Invalid config [agents.${agentName}]: ${err}`);
+    }
+  }
+
+  return config;
 }
 
 const ENV_TEMPLATE = `# API keys for headless agent authentication
@@ -92,7 +102,8 @@ export function validateWorkspace(name: string): string | null {
   if (name.startsWith('/')) return 'Workspace name must not be an absolute path.';
   if (name.includes('/') || name.includes('\\')) return 'Workspace name must not contain path separators.';
   if (name === '.' || name === '..') return 'Workspace name must not be a traversal segment.';
-  if (name.includes('@')) return 'Workspace name must not contain "@" (reserved as session delimiter).';
+  const tokenErr = validateSessionToken(name, 'Workspace name');
+  if (tokenErr) return tokenErr;
   return null;
 }
 

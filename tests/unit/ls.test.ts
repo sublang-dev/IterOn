@@ -59,6 +59,33 @@ describe('parseSessions', () => {
     expect(result[0].command).toBe('orphan');
     expect(result[0].location).toBe('~');
   });
+
+  it('splits session name on the last @ delimiter', () => {
+    const output = `foo@bar@ws 0 ${fixedNow - 60}`;
+    const result = parseSessions(output);
+    expect(result[0].command).toBe('foo@bar');
+    expect(result[0].location).toBe('ws');
+  });
+
+  it('handles extra whitespace between fields', () => {
+    const output = `bash@myproject   1   ${fixedNow - 120}`;
+    const result = parseSessions(output);
+    expect(result).toHaveLength(1);
+    expect(result[0].attached).toBe(true);
+    expect(result[0].uptime_seconds).toBe(120);
+  });
+
+  it('skips malformed session lines', () => {
+    const output = [
+      'missing-fields',
+      `bad-epoch 1 not-a-number`,
+      `good@ws 0 ${fixedNow - 30}`,
+      '',
+    ].join('\n');
+    const result = parseSessions(output);
+    expect(result).toHaveLength(1);
+    expect(result[0].session).toBe('good@ws');
+  });
 });
 
 describe('formatUptime', () => {

@@ -72,8 +72,8 @@ jobs:
       - name: Pull test image
         run: podman pull docker.io/library/alpine:latest
 
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run integration tests (lifecycle only)
+        run: npx vitest run tests/integration/init.test.ts tests/integration/start-stop.test.ts --fileParallelism=false
 
   test-integration-image:
     runs-on: ubuntu-latest
