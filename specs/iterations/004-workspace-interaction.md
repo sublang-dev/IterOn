@@ -9,10 +9,10 @@ Implement `iteron open`, `iteron ls`, and `iteron rm` commands for launching age
 
 ## Deliverables
 
-- [ ] `iteron open [agent] [workspace] [-- <args>]`: launch agent/shell in tmux session, with agent-name-to-binary resolution
-- [ ] Attach-to-existing: reattach to running tmux sessions
-- [ ] `iteron ls`: tree view of workspaces and running sessions
-- [ ] `iteron rm <workspace>`: remove workspace and kill its sessions
+- [x] `iteron open [agent] [workspace] [-- <args>]`: launch agent/shell in tmux session, with agent-name-to-binary resolution
+- [x] Attach-to-existing: reattach to running tmux sessions
+- [x] `iteron ls`: tree view of workspaces and running sessions
+- [x] `iteron rm <workspace>`: remove workspace and kill its sessions
 
 ## Tasks
 
