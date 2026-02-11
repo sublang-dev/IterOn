@@ -33,14 +33,19 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 
 ### 3. Authentication
 
-**API keys (headless default):** Inject per-agent keys as environment variables (`ANTHROPIC_API_KEY`, `CODEX_API_KEY` \[16]\[34] (`codex exec` only), `GEMINI_API_KEY` \[17]) sourced from AWS Secrets Manager or Vault. Claude Code requires `hasCompletedOnboarding: true` in `~/.claude.json` to bypass the interactive first-run prompt \[18].
+**Subscription auth (primary):** Each agent uses the most reliable headless mechanism for subscription-based auth:
 
-**Dynamic retrieval:** Claude Code's `apiKeyHelper` setting runs a script returning fresh keys on each invocation, with refresh controlled by `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` \[19].
+- **Claude Code:** `claude setup-token` \[39] generates a ~1-year OAuth token on a machine with a browser (Pro/Max subscription); inject as `CLAUDE_CODE_OAUTH_TOKEN` env var. `hasCompletedOnboarding: true` in `~/.claude.json` is required to skip the first-run prompt \[18]. Direct credential forwarding is not viable: macOS stores OAuth tokens exclusively in Keychain \[40], and token refresh is broken in copied credentials \[41].
+- **Codex CLI:** `codex login --device-auth` \[16] displays a URL and one-time code in the terminal; user completes auth on any browser. Works through IterOn's tmux interaction. Teams/Enterprise admins must enable device-code auth \[42]. Credential forwarding via `docker cp` of `~/.codex/auth.json` is an officially documented alternative \[42] but risks token desync on concurrent host/container use (see \[43]).
+- **Gemini CLI:** `NO_BROWSER=true` triggers a PKCE OAuth flow where the CLI prints an auth URL and the user pastes back the authorization code; works through IterOn's tmux interaction. This env var is referenced in CLI error messages but not yet in official auth guides \[17]; a v0.18.0 regression was fixed in v0.18.4 \[44]. Google Cloud service accounts via Vertex AI \[17] serve enterprise deployments.
+- **OpenCode:** Mount host `~/.local/share/opencode/auth.json` into the container \[45] (file-based, no Keychain involvement). Alternatively, inject provider env vars directly.
+
+**API keys (fallback):** Inject per-agent keys as environment variables (`ANTHROPIC_API_KEY`, `CODEX_API_KEY` \[34] (`codex exec` only), `GEMINI_API_KEY` \[17]) via `~/.iteron/.env`, AWS Secrets Manager, or Vault.
+
+**Dynamic retrieval:** Claude Code's `apiKeyHelper` \[19] runs a script returning fresh keys on each invocation, with refresh controlled by `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`. Must not coexist with `CLAUDE_CODE_OAUTH_TOKEN`.
 
 **Credential-injecting proxy (multi-agent):** Anthropic's secure deployment guide \[20] describes a proxy pattern: container runs with `--network none`, a mounted Unix socket connects to a host-side proxy (e.g., LiteLLM \[21] or Envoy \[22]) that injects credentials into outbound requests and enforces domain allowlists. This provides per-agent budgets and centralized audit logging.
 > **Caveat:** Community reports indicate Anthropic blocks subscription (Pro/Max) OAuth tokens from proxy and third-party use as of January 2026 \[23]. The proxy pattern requires API keys, not subscription tokens.
-
-**Headless subscription auth for Codex and Gemini:** Codex CLI offers a device code flow (`codex login --device-auth`) \[16]; Gemini CLI supports Google Cloud service accounts for non-interactive auth \[17].
 
 ### 4. AWS deployment: Fargate + EFS
 
@@ -69,7 +74,7 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 - **Full agent autonomy** — unrestricted shell, filesystem, and network access within the container. No permission prompts.
 - **Portable security** — same OCI image locally and on Fargate; Firecracker isolation automatic in production.
 - **Tmux persistence** — in-container tmux survives connection drops; users inspect agents at any time.
-- **Subscription auth friction** — community reports indicate Anthropic blocks subscription tokens from proxies \[23]; API keys required for proxy-based credential management.
+- **Subscription-first auth** — agents use subscription credentials headlessly via setup tokens (Claude Code), device code flow (Codex CLI), `NO_BROWSER` PKCE OAuth (Gemini CLI), and credential forwarding (OpenCode). Proxy-based credential management requires API keys, not subscription tokens \[23].
 
 ### Rejected alternatives
 
@@ -121,3 +126,10 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 36. Docker Desktop subscription required for 250+ employees or >$10M revenue — <https://docs.docker.com/subscription/desktop-license/>
 37. Podman CLI compatible with Docker — <https://podman-desktop.io/docs/migrating-from-docker/managing-docker-compatibility>
 38. Codex CLI Linux sandbox (Bubblewrap, feature-gated) — <https://github.com/openai/codex/blob/main/codex-rs/linux-sandbox/README.md>
+39. Claude Code `setup-token` for headless OAuth — <https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md>
+40. Claude Code stores OAuth in macOS Keychain only (deletes credential file), GitHub #10039 — <https://github.com/anthropics/claude-code/issues/10039>
+41. Claude Code token refresh broken in copied credentials, GitHub #21765 — <https://github.com/anthropics/claude-code/issues/21765>
+42. Codex CLI device-code auth requires admin enablement — <https://developers.openai.com/codex/auth/>
+43. Codex CLI single-use rotating refresh tokens, GitHub #6036 — <https://github.com/openai/codex/issues/6036>
+44. Gemini CLI `NO_BROWSER` regression fixed in v0.18.4, GitHub #13853 — <https://github.com/google-gemini/gemini-cli/issues/13853>
+45. OpenCode file-based credential storage (no Keychain) — <https://opencode.ai/docs/providers/>

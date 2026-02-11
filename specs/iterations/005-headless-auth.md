@@ -5,62 +5,115 @@
 
 ## Goal
 
-Configure API key injection and headless authentication so all four agents start without interactive prompts (login, onboarding, permission dialogs) inside the sandbox container.
+Configure subscription-based authentication as the primary headless auth path, with API key injection as the fallback, so all four agents start without interactive prompts (login, onboarding, permission dialogs) inside the sandbox container.
 
 ## Deliverables
 
-- [ ] Claude Code headless configuration (`hasCompletedOnboarding`, API key, permission bypass)
-- [ ] Codex CLI API key injection (`CODEX_API_KEY` for `codex exec`)
-- [ ] Gemini CLI API key injection (`GEMINI_API_KEY`)
-- [ ] OpenCode API key injection
-- [ ] Documentation of subscription auth flows (device-auth, service accounts) as alternatives
+- [ ] Claude Code subscription auth (`CLAUDE_CODE_OAUTH_TOKEN` via `setup-token`)
+- [ ] Codex CLI subscription auth (`codex login --device-auth`)
+- [ ] Gemini CLI subscription auth (`NO_BROWSER=true` PKCE OAuth flow)
+- [ ] OpenCode auth (credential forwarding or provider env vars)
+- [ ] API key fallback for Claude Code, Codex CLI, and Gemini CLI
+- [ ] `hasCompletedOnboarding` bypass for Claude Code
 
 ## Tasks
 
-### 1. Claude Code headless authentication
+### 1. Claude Code authentication
 
 Per [DR-001 §3](../decisions/001-sandbox-architecture.md#3-authentication):
 
-- Verify `~/.claude.json` with `hasCompletedOnboarding: true` is present in image (from [IR-001 §5](001-oci-sandbox-image.md#5-agent-autonomy-configuration))
-- Inject `ANTHROPIC_API_KEY` via `~/.iteron/.env` (loaded by `iteron start` per [IR-002 §3](002-container-lifecycle.md#3-iteron-start))
-- Document `apiKeyHelper` configuration for dynamic key retrieval
-- Document `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` for key caching
+**Subscription (primary):**
 
-### 2. Codex CLI headless authentication
+- Support `CLAUDE_CODE_OAUTH_TOKEN` env var in `~/.iteron/.env` (loaded by `iteron start` per [IR-002 §3](002-container-lifecycle.md#3-iteron-start))
+- Document one-time `claude setup-token` step on a host with a browser; token valid ~1 year \[1]
+- Document that `CLAUDE_CODE_OAUTH_TOKEN` must not coexist with `apiKeyHelper` \[2]
 
-- Inject `CODEX_API_KEY` via `~/.iteron/.env` (for `codex exec` non-interactive mode)
-- Document `codex login --device-auth` flow for subscription users as an alternative
-- Note: `CODEX_API_KEY` is `codex exec` only per [DR-001 §3](../decisions/001-sandbox-architecture.md#3-authentication)
+**Fallback:**
 
-### 3. Gemini CLI headless authentication
+- Inject `ANTHROPIC_API_KEY` via `~/.iteron/.env`
 
-- Inject `GEMINI_API_KEY` via `~/.iteron/.env`
-- Document Google Cloud service account setup for non-interactive auth as an alternative
+**Onboarding bypass:**
+
+- Verify `~/.claude.json` with `hasCompletedOnboarding: true` is present in image (from [IR-001 §5](001-oci-sandbox-image.md#5-agent-autonomy-configuration)) \[3]
+
+> **Why not credential forwarding?** macOS stores OAuth tokens in Keychain rather than on disk \[2]\[4]; copied credentials stop working after access-token expiry (known issue \[5]). `setup-token` avoids both problems.
+
+### 2. Codex CLI authentication
+
+**Subscription (primary):**
+
+- Support `codex login --device-auth` inside the container via tmux \[6] — displays URL and one-time code; user completes auth on any browser
+- Document that Teams/Enterprise workspace admins must enable device-code auth \[6]
+
+**Fallback:**
+
+- Inject `CODEX_API_KEY` via `~/.iteron/.env` (for `codex exec` non-interactive mode only) \[7]
+
+> **Alternative: credential forwarding.** Copying `auth.json` into containers is officially documented \[6] but requires `cli_auth_credentials_store = "file"` on macOS (default `auto` uses Keychain) \[8] and risks token desync on concurrent host/container use.
+
+### 3. Gemini CLI authentication
+
+**Subscription (primary):**
+
+- Set `NO_BROWSER=true` in container environment; the CLI prints an OAuth URL for the user to open on any browser and paste back the authorization code \[9]
+- Works through IterOn's tmux interaction
+- Caveat: this env var is referenced in CLI error messages but not yet in official auth guides \[9]; a v0.18.0 regression was fixed in v0.18.4 \[10]
+
+**Fallback:**
+
+- Inject `GEMINI_API_KEY` via `~/.iteron/.env` \[9]
+
+**Enterprise alternative:**
+
+- Document Google Cloud service account setup (`GOOGLE_APPLICATION_CREDENTIALS`) for Vertex AI \[9]
 
 ### 4. OpenCode authentication
 
-- Inject provider API key (typically `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`) via `~/.iteron/.env`
-- Document which provider keys OpenCode accepts
+**Primary:**
+
+- Support credential forwarding: `iteron start` bind-mounts host `~/.local/share/opencode/auth.json` into the container if it exists (file-based, no Keychain \[11]; path is `~/.local/share/` on all platforms via `xdg-basedir` \[12])
+- Mount read-write for token refresh; add `:U` suffix for rootless Podman UID mapping
+
+**Fallback:**
+
+- Inject provider env var (e.g. `ANTHROPIC_API_KEY`) via `~/.iteron/.env` \[13]
 
 ## Verification
 
-Each test runs in a freshly started container (`iteron stop && iteron start`) with the corresponding API key set in `~/.iteron/.env`.
+Each test runs in a freshly started container (`iteron stop && iteron start`).
 
 | # | Test | Expected |
 | --- | --- | --- |
-| 1 | Set valid `ANTHROPIC_API_KEY` in `.env`; `iteron open claude-code`; type `hello` at the prompt | Agent responds (no onboarding wizard, no "enter API key" prompt). Detach. |
-| 2 | Set valid `ANTHROPIC_API_KEY` in `.env`; `podman exec iteron-sandbox claude -p "echo hello" --output-format json` | Exit 0; stdout contains JSON with `"result"` field |
-| 3 | Set empty `ANTHROPIC_API_KEY=` in `.env`; `podman exec iteron-sandbox claude -p "echo hello"` | Exit non-zero; stderr contains authentication error (not an onboarding prompt) |
-| 4 | Set valid `CODEX_API_KEY` in `.env`; `podman exec iteron-sandbox codex exec "echo hello world"` | Exit 0; produces output (not a login prompt) |
-| 5 | Set valid `GEMINI_API_KEY` in `.env`; `podman exec iteron-sandbox gemini -p "echo hello"` (verify exact non-interactive flag during implementation) | Exit 0; stdout contains agent response (not a "sign in with Google" prompt) |
-| 6 | Set valid provider key in `.env`; `podman exec iteron-sandbox opencode -p "echo hello"` (verify exact non-interactive flag during implementation) | Exit 0; stdout contains agent response (not an auth prompt) |
-| 7 | `podman exec iteron-sandbox printenv ANTHROPIC_API_KEY` | Matches value from `.env` (key injection works) |
-| 8 | `podman exec iteron-sandbox cat ~/.claude.json \| jq .hasCompletedOnboarding` | `true` |
+| 1 | Set `CLAUDE_CODE_OAUTH_TOKEN` in `.env`; `iteron open claude-code`; send `hello` | Agent responds without login or onboarding prompt |
+| 2 | Set `ANTHROPIC_API_KEY` in `.env` (no OAuth token); `podman exec iteron-sandbox claude -p "echo hello"` | Exit 0 (API key fallback works) |
+| 3 | No auth in `.env`; `podman exec iteron-sandbox claude -p "echo hello"` | Exit non-zero; stderr shows auth error, not onboarding |
+| 4 | `iteron open codex-cli`; run `codex login --device-auth` | CLI displays device URL and code; login succeeds after browser auth |
+| 5 | Set `CODEX_API_KEY` in `.env`; `podman exec iteron-sandbox codex exec "echo hello"` | Exit 0 |
+| 6 | `iteron open gemini-cli` (with `NO_BROWSER=true`); run `gemini` | CLI prints auth URL; after browser auth and code paste, agent responds |
+| 7 | Set `GEMINI_API_KEY` in `.env`; `podman exec iteron-sandbox gemini -p "echo hello"` | Exit 0 (API key fallback) |
+| 8 | Mount host `auth.json`; `podman exec iteron-sandbox opencode run "echo hello"` | Exit 0; uses forwarded credentials |
+| 9 | `podman exec iteron-sandbox cat ~/.claude.json \| jq .hasCompletedOnboarding` | `true` |
+
+## References
+
+1. Claude Code `setup-token` (official) — <https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md>
+2. Claude Code authentication (official) — <https://code.claude.com/docs/en/authentication>
+3. Claude Code `hasCompletedOnboarding`, GitHub #4714 — <https://github.com/anthropics/claude-code/issues/4714>
+4. Claude Code macOS Keychain storage, GitHub #10039 — <https://github.com/anthropics/claude-code/issues/10039>
+5. Claude Code token refresh on copy, GitHub #21765 — <https://github.com/anthropics/claude-code/issues/21765>
+6. Codex CLI authentication (official) — <https://developers.openai.com/codex/auth/>
+7. Codex CLI non-interactive mode (official) — <https://developers.openai.com/codex/noninteractive/>
+8. Codex CLI config reference (official) — <https://developers.openai.com/codex/config-reference/>
+9. Gemini CLI authentication (official) — <https://github.com/google-gemini/gemini-cli/blob/main/docs/get-started/authentication.md>
+10. Gemini CLI `NO_BROWSER` regression fixed in v0.18.4, GitHub #13853 — <https://github.com/google-gemini/gemini-cli/issues/13853>
+11. OpenCode file-based credential storage, GitHub #4318 — <https://github.com/sst/opencode/issues/4318>
+12. OpenCode uses `xdg-basedir` on all platforms — <https://github.com/sst/opencode/blob/dev/packages/opencode/src/global/index.ts>
+13. OpenCode provider configuration (official) — <https://opencode.ai/docs/providers/>
 
 ## Dependencies
 
 - [IR-001](001-oci-sandbox-image.md) (autonomy defaults baked into image)
-- [IR-002](002-container-lifecycle.md) (`.env` loading via `iteron start`)
+- [IR-002](002-container-lifecycle.md) (`.env` loading and volume mounts via `iteron start`)
 - [IR-004](004-workspace-interaction.md) (`iteron open` for interactive verification)
 - [DR-001 §3](../decisions/001-sandbox-architecture.md#3-authentication) approved
-- Valid API keys for Anthropic, OpenAI, and Google (test accounts)
+- Valid subscriptions or API keys for Anthropic, OpenAI, and Google (test accounts)
