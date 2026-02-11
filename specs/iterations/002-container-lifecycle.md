@@ -39,9 +39,12 @@ Per [DR-002 §1](../decisions/002-iteron-cli-commands.md#1-iteron-init):
 - Pull multi-arch OCI image from [IR-001](001-oci-sandbox-image.md)
 - Create `iteron-data` Podman volume
 - Generate `~/.iteron/config.toml` with defaults (see Task 5), including the agent name mapping from [IR-001 §2](001-oci-sandbox-image.md#2-agent-runtime-installation-and-name-mapping)
+- If `~/.iteron/config.toml` already exists, preserve user settings and agent mappings, but reconcile `[container].image` when either:
+  - Current image is legacy default `docker.io/library/alpine:latest` (update to default sandbox image)
+  - User passes `--image <url>` (update to the provided image)
 - Generate `~/.iteron/.env` template with placeholder keys
 - Support `--image <url>` option for custom OCI image per [DR-002 §1](../decisions/002-iteron-cli-commands.md#1-iteron-init)
-- Idempotent: skip steps already completed, report what was skipped
+- Idempotent: skip steps already completed, report what was skipped or updated
 
 ### 3. `iteron start`
 
@@ -113,10 +116,10 @@ GEMINI_API_KEY=
 | --- | --- | --- |
 | 1 | `iteron init` on clean macOS | Downloads and installs Podman `.pkg`, inits machine, pulls image, creates volume and config files |
 | 2 | `iteron init` on clean Ubuntu | Installs Podman via `apt-get`, pulls image, creates volume and config files |
-| 3 | `iteron init` run twice | Second run skips completed steps, exits 0, prints what was skipped |
-| 4 | `iteron start` then `podman inspect iteron-sandbox --format '{{.HostConfig.CapDrop}}'` | Output contains `ALL` |
-| 5 | `iteron start` then `podman inspect iteron-sandbox --format '{{.HostConfig.ReadonlyRootfs}}'` | `true` |
-| 6 | `iteron start` then `podman inspect iteron-sandbox --format '{{.HostConfig.SecurityOpt}}'` | Contains `no-new-privileges` |
+| 3 | `iteron init` run twice | Second run exits 0 and reports steps as skipped or updated based on reconciliation rules |
+| 4 | `iteron start` then `podman container inspect iteron-sandbox --format '{{.HostConfig.CapDrop}}'` | Output contains `ALL` |
+| 5 | `iteron start` then `podman container inspect iteron-sandbox --format '{{.HostConfig.ReadonlyRootfs}}'` | `true` |
+| 6 | `iteron start` then `podman container inspect iteron-sandbox --format '{{.HostConfig.SecurityOpt}}'` | Contains `no-new-privileges` |
 | 7 | `iteron start` when already running | Exits 0, prints "already running" |
 | 8 | `iteron stop` | Container stops within 30s; `podman ps -a --filter name=iteron-sandbox` returns empty |
 | 9 | `iteron stop` when not running | Exits 0, prints "not running" |
@@ -125,6 +128,9 @@ GEMINI_API_KEY=
 | 12 | Set `ANTHROPIC_API_KEY=sk-test-123` in `.env`, `iteron start`, `podman exec iteron-sandbox printenv ANTHROPIC_API_KEY` | `sk-test-123` |
 | 13 | `iteron start`, `podman exec iteron-sandbox touch /home/iteron/persist-test`, `iteron stop`, `iteron start`, `podman exec iteron-sandbox test -f /home/iteron/persist-test` | Exit 0 (file persists across restart) |
 | 14 | `iteron --help` | Lists `init`, `start`, `stop` subcommands with one-line descriptions |
+| 15 | Existing `config.toml` has `image = "docker.io/library/alpine:latest"`, run `iteron init` | `config.toml` image is reconciled to `ghcr.io/sublang-dev/iteron-sandbox:latest` |
+| 16 | Existing `config.toml` has custom image, run `iteron init` without `--image` | Custom image remains unchanged |
+| 17 | Existing `config.toml` has custom image, run `iteron init --image <url>` | `config.toml` image updated to `<url>` |
 
 ## Dependencies
 

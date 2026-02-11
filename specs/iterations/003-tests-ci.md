@@ -54,6 +54,7 @@ export const CONFIG_DIR = process.env.ITERON_CONFIG_DIR ?? join(homedir(), '.ite
 - `defaultConfig()` returns correct structure with/without custom image
 - `writeConfig()` → `readConfig()` round-trip
 - `writeConfig()` idempotent (returns false second time)
+- `reconcileConfigImage()` updates legacy default image, preserves custom image by default, and updates custom image when forced
 - `readConfig()` throws when config missing
 - `writeEnvTemplate()` creates file with expected keys, idempotent
 
@@ -61,6 +62,7 @@ export const CONFIG_DIR = process.env.ITERON_CONFIG_DIR ?? join(homedir(), '.ite
 
 - `podmanErrorMessage()`: ENOENT, stderr extraction, fallback
 - Mock `execFile` for: `isPodmanInstalled`, `imageExists`, `containerExists`, `isContainerRunning`, `volumeExists`
+- Assert `containerExists`/`isContainerRunning` call container-scoped inspect args (`podman container inspect ...`)
 
 **`tests/unit/git.test.ts`** (uses temp dir):
 
@@ -73,6 +75,7 @@ export const CONFIG_DIR = process.env.ITERON_CONFIG_DIR ?? join(homedir(), '.ite
 
 - Init with `--yes` and `--image alpine:latest` in isolated config dir
 - Second init skips all steps (idempotent) — IR-002 test 3
+- Existing legacy config image (`docker.io/library/alpine:latest`) is reconciled to the default sandbox image
 - Config and env files have expected content — IR-002 tests 10, 11
 
 **`tests/integration/start-stop.test.ts`**:
