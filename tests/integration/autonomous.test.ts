@@ -34,6 +34,22 @@ const HAS_PODMAN = podmanAvailable();
 /** At least one agent auth key must be set for autonomous tests to be meaningful. */
 const AUTH_KEYS = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'CODEX_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY'];
 const HAS_AUTH = AUTH_KEYS.some((k) => !!process.env[k]);
+const SECRET_VALUES = new Set<string>();
+
+function registerSecretValue(raw: string | undefined): void {
+  if (!raw) return;
+  const trimmed = raw.trim();
+  if (!trimmed) return;
+
+  SECRET_VALUES.add(trimmed);
+
+  const quoted = trimmed.match(/^(['"])(.*)\1$/);
+  if (quoted && quoted[2]) SECRET_VALUES.add(quoted[2]);
+}
+
+for (const k of AUTH_KEYS) {
+  registerSecretValue(process.env[k]);
+}
 
 function podmanExecSync(args: string[], options?: { timeout?: number }): string {
   return execFileSync('podman', args, {
@@ -69,9 +85,8 @@ function runAgent(
 /** Replace known secret values with '***' (mirrors CI ::add-mask::). */
 function redactSecrets(text: string): string {
   let result = text;
-  for (const k of AUTH_KEYS) {
-    const v = process.env[k];
-    if (v && v.length > 0) result = result.replaceAll(v, '***');
+  for (const secret of SECRET_VALUES) {
+    result = result.replaceAll(secret, '***');
   }
   return result;
 }
@@ -89,6 +104,16 @@ function diagnoseAgent(exitCode: number, log: string): string {
   const firstLine = redactSecrets(log.trim().split('\n')[0]?.slice(0, 200) ?? '');
   if (firstLine) hints.push(`first_line: ${firstLine}`);
   return hints.join(', ');
+}
+
+/** Dump redacted agent log to stderr for local/CI diagnosis. */
+function dumpAgentLog(label: string, log: string): void {
+  const redacted = redactSecrets(log);
+  const lines = redacted.split('\n');
+  const tail = lines.length > 80 ? lines.slice(-80) : lines;
+  console.error(`\n──── ${label} (last ${tail.length}/${lines.length} lines) ────`);
+  console.error(tail.join('\n'));
+  console.error(`──── end ${label} ────\n`);
 }
 
 /** Create the buggy test fixture in a container workspace. */
@@ -120,6 +145,18 @@ async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['stop', '-t', '0', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
   try { execFileSync('podman', ['rm', '-f', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
 }
+
+describe('autonomous log redaction helpers', () => {
+  it('masks registered secret values', () => {
+    const secret = '__ITERON_TEST_SECRET_0123456789__';
+    SECRET_VALUES.add(secret);
+    try {
+      expect(redactSecrets(`prefix ${secret} suffix`)).toBe('prefix *** suffix');
+    } finally {
+      SECRET_VALUES.delete(secret);
+    }
+  });
+});
 
 // Skip when no sandbox image, no Podman, or no auth keys — these tests need real agents.
 describe.skipIf(!HAS_PODMAN || !HAS_SANDBOX_IMAGE || !HAS_AUTH)(
@@ -181,6 +218,10 @@ binary = "opencode"
         if (process.env[k]) envMap.set(k, process.env[k]!);
       }
 
+      for (const k of AUTH_KEYS) {
+        registerSecretValue(envMap.get(k));
+      }
+
       if (envMap.size > 0) {
         writeFileSync(envFile, [...envMap].map(([k, v]) => `${k}=${v}`).join('\n') + '\n', 'utf-8');
       } else {
@@ -233,6 +274,7 @@ binary = "opencode"
         'claude -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js." --output-format json',
       );
       ccLog = agent.log;
+      dumpAgentLog('claude-code', agent.log);
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-cc');
@@ -256,6 +298,7 @@ binary = "opencode"
         'codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       codexLog = agent.log;
+      dumpAgentLog('codex-cli', agent.log);
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-codex');
@@ -279,6 +322,7 @@ binary = "opencode"
         'gemini --yolo -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       geminiLog = agent.log;
+      dumpAgentLog('gemini-cli', agent.log);
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-gemini');
@@ -299,12 +343,14 @@ binary = "opencode"
 
       const agent = runAgent(
         'test-opencode',
-        'opencode run -m moonshotai/kimi-k2.5 "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
+        'opencode run -m moonshotai-cn/kimi-k2.5 "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       opencodeLog = agent.log;
+      dumpAgentLog('opencode', agent.log);
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-opencode');
+      dumpAgentLog('opencode npm-test', result.output);
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('PASS');
     });

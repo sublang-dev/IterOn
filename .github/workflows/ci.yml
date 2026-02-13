@@ -96,6 +96,7 @@ jobs:
         run: |
           for secret in \
             "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" \
+            "${{ secrets.ANTHROPIC_API_KEY }}" \
             "${{ secrets.CODEX_API_KEY }}" \
             "${{ secrets.GEMINI_API_KEY }}" \
             "${{ secrets.MOONSHOT_API_KEY }}"; do
@@ -114,6 +115,7 @@ jobs:
         env:
           ITERON_TEST_IMAGE: ghcr.io/sublang-dev/iteron-sandbox:dev-latest
           CLAUDE_CODE_OAUTH_TOKEN: ${{ github.event_name == 'push' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          ANTHROPIC_API_KEY: ${{ github.event_name == 'push' && secrets.ANTHROPIC_API_KEY || '' }}
           CODEX_API_KEY: ${{ github.event_name == 'push' && secrets.CODEX_API_KEY || '' }}
           GEMINI_API_KEY: ${{ github.event_name == 'push' && secrets.GEMINI_API_KEY || '' }}
           MOONSHOT_API_KEY: ${{ github.event_name == 'push' && secrets.MOONSHOT_API_KEY || '' }}
