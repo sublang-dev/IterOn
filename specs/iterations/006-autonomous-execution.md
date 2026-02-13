@@ -9,8 +9,8 @@ Verify that each agent can complete a real coding task autonomously — no permi
 
 ## Deliverables
 
-- [ ] Test fixture script that creates a reproducible project inside the container
-- [ ] Per-agent test scripts that run the agent, wait for completion, and check artifacts
+- [x] Test fixture script that creates a reproducible project inside the container
+- [x] Per-agent test scripts that run the agent, wait for completion, and check artifacts
 - [ ] All four agents pass the coding task without human interaction
 
 ## Tasks
@@ -70,16 +70,14 @@ A setup script (`tests/setup-fixture.sh`) creates this fixture via `podman exec`
 - Wait for exit (timeout: 120s)
 - Check: `podman exec iteron-sandbox bash -c 'cd ~/test-gemini && npm test'`
 - Expected: exit 0, stdout contains `PASS`
-- Note: Gemini CLI non-interactive invocation syntax should be verified against current docs
 
 ### 5. OpenCode autonomous test
 
 - Create fixture at `~/test-opencode/`
-- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && opencode -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
+- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && opencode run "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
 - Wait for exit (timeout: 120s)
 - Check: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && npm test'`
 - Expected: exit 0, stdout contains `PASS`
-- Note: OpenCode non-interactive invocation syntax should be verified against current docs
 
 ### 6. Permission prompt absence test
 
@@ -100,7 +98,7 @@ For each agent test above, additionally verify that the agent did not pause for 
 | 5 | Codex CLI log grep | Agent log from test 4 | No permission prompt patterns found |
 | 6 | Gemini CLI autonomous fix | `gemini -p "Fix the bug..."` in `~/test-gemini/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 7 | Gemini CLI log grep | Agent log from test 6 | No permission prompt patterns found |
-| 8 | OpenCode autonomous fix | `opencode -p "Fix the bug..."` in `~/test-opencode/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
+| 8 | OpenCode autonomous fix | `opencode run "Fix the bug..."` in `~/test-opencode/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 9 | OpenCode log grep | Agent log from test 8 | No permission prompt patterns found |
 | 10 | All four agents sequentially | Run tests 2, 4, 6, 8 in sequence | All four pass |
 
