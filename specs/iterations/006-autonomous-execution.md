@@ -58,7 +58,7 @@ A setup script (`tests/setup-fixture.sh`) creates this fixture via `podman exec`
 ### 3. Codex CLI autonomous test
 
 - Create fixture at `~/test-codex/`
-- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-codex && codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
+- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-codex && codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'` (fixture must be a git repo; Codex requires a trusted directory)
 - Wait for exit (timeout: 120s)
 - Check: `podman exec iteron-sandbox bash -c 'cd ~/test-codex && npm test'`
 - Expected: exit 0, stdout contains `PASS`
@@ -66,7 +66,7 @@ A setup script (`tests/setup-fixture.sh`) creates this fixture via `podman exec`
 ### 4. Gemini CLI autonomous test
 
 - Create fixture at `~/test-gemini/`
-- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-gemini && gemini -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
+- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-gemini && gemini --yolo -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
 - Wait for exit (timeout: 120s)
 - Check: `podman exec iteron-sandbox bash -c 'cd ~/test-gemini && npm test'`
 - Expected: exit 0, stdout contains `PASS`
@@ -74,7 +74,7 @@ A setup script (`tests/setup-fixture.sh`) creates this fixture via `podman exec`
 ### 5. OpenCode autonomous test
 
 - Create fixture at `~/test-opencode/`
-- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && opencode run "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
+- Run: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && opencode run -m moonshotai/kimi-k2.5 "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."'`
 - Wait for exit (timeout: 120s)
 - Check: `podman exec iteron-sandbox bash -c 'cd ~/test-opencode && npm test'`
 - Expected: exit 0, stdout contains `PASS`
@@ -96,9 +96,9 @@ For each agent test above, additionally verify that the agent did not pause for 
 | 3 | Claude Code log grep | Agent log from test 2 | No permission prompt patterns found |
 | 4 | Codex CLI autonomous fix | `codex exec "Fix the bug..."` in `~/test-codex/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 5 | Codex CLI log grep | Agent log from test 4 | No permission prompt patterns found |
-| 6 | Gemini CLI autonomous fix | `gemini -p "Fix the bug..."` in `~/test-gemini/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
+| 6 | Gemini CLI autonomous fix | `gemini --yolo -p "Fix the bug..."` in `~/test-gemini/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 7 | Gemini CLI log grep | Agent log from test 6 | No permission prompt patterns found |
-| 8 | OpenCode autonomous fix | `opencode run "Fix the bug..."` in `~/test-opencode/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
+| 8 | OpenCode autonomous fix | `opencode run -m moonshotai/kimi-k2.5 "Fix the bug..."` in `~/test-opencode/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 9 | OpenCode log grep | Agent log from test 8 | No permission prompt patterns found |
 
 ## Dependencies

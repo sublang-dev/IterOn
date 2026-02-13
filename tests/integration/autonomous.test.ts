@@ -66,6 +66,16 @@ function runAgent(
   };
 }
 
+/** Replace known secret values with '***' (mirrors CI ::add-mask::). */
+function redactSecrets(text: string): string {
+  let result = text;
+  for (const k of AUTH_KEYS) {
+    const v = process.env[k];
+    if (v && v.length > 0) result = result.replaceAll(v, '***');
+  }
+  return result;
+}
+
 /** Build a safe diagnostic string from agent output (no raw secrets). */
 function diagnoseAgent(exitCode: number, log: string): string {
   const hints: string[] = [`exit=${exitCode}`, `log_bytes=${log.length}`];
@@ -76,7 +86,7 @@ function diagnoseAgent(exitCode: number, log: string): string {
   if (log.match(/rate.limit|429|quota/i)) hints.push('hint:rate-limit');
   if (log.match(/model.*not|unknown model|invalid model/i)) hints.push('hint:bad-model');
   if (log.match(/connect|ECONNREFUSED|network/i)) hints.push('hint:network-error');
-  const firstLine = log.trim().split('\n')[0]?.slice(0, 200) ?? '';
+  const firstLine = redactSecrets(log.trim().split('\n')[0]?.slice(0, 200) ?? '');
   if (firstLine) hints.push(`first_line: ${firstLine}`);
   return hints.join(', ');
 }
@@ -266,7 +276,7 @@ binary = "opencode"
 
       const agent = runAgent(
         'test-gemini',
-        'gemini -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
+        'gemini --yolo -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       geminiLog = agent.log;
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
@@ -289,7 +299,7 @@ binary = "opencode"
 
       const agent = runAgent(
         'test-opencode',
-        'opencode run -m moonshot/kimi-k2-0711-preview "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
+        'opencode run -m moonshotai/kimi-k2.5 "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       opencodeLog = agent.log;
       expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);

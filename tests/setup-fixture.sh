@@ -20,6 +20,9 @@ podman exec "$CONTAINER" rm -rf "$DIR"
 # Create directory structure
 podman exec "$CONTAINER" mkdir -p "${DIR}/src" "${DIR}/tests"
 
+# Initialize git repo (Codex CLI requires a trusted git directory)
+podman exec "$CONTAINER" git -C "$DIR" init -q
+
 # package.json
 podman exec "$CONTAINER" bash -c "cat > ${DIR}/package.json << 'FIXTURE_EOF'
 { \"scripts\": { \"test\": \"node tests/test_calc.js\" } }
