@@ -100,7 +100,6 @@ For each agent test above, additionally verify that the agent did not pause for 
 | 7 | Gemini CLI log grep | Agent log from test 6 | No permission prompt patterns found |
 | 8 | OpenCode autonomous fix | `opencode run "Fix the bug..."` in `~/test-opencode/` | Agent exits 0; `npm test` exits 0; stdout contains `PASS` |
 | 9 | OpenCode log grep | Agent log from test 8 | No permission prompt patterns found |
-| 10 | All four agents sequentially | Run tests 2, 4, 6, 8 in sequence | All four pass |
 
 ## Dependencies
 

@@ -66,6 +66,21 @@ function runAgent(
   };
 }
 
+/** Build a safe diagnostic string from agent output (no raw secrets). */
+function diagnoseAgent(exitCode: number, log: string): string {
+  const hints: string[] = [`exit=${exitCode}`, `log_bytes=${log.length}`];
+  if (log.match(/auth|token|api.key|unauthorized|credential|log.?in/i)) hints.push('hint:auth-error');
+  if (log.match(/not found|command not found|no such file/i)) hints.push('hint:missing-binary');
+  if (log.match(/timeout|timed out|ETIMEDOUT/i)) hints.push('hint:timeout');
+  if (log.match(/permission|denied|EPERM|EACCES/i)) hints.push('hint:permission-denied');
+  if (log.match(/rate.limit|429|quota/i)) hints.push('hint:rate-limit');
+  if (log.match(/model.*not|unknown model|invalid model/i)) hints.push('hint:bad-model');
+  if (log.match(/connect|ECONNREFUSED|network/i)) hints.push('hint:network-error');
+  const firstLine = log.trim().split('\n')[0]?.slice(0, 200) ?? '';
+  if (firstLine) hints.push(`first_line: ${firstLine}`);
+  return hints.join(', ');
+}
+
 /** Create the buggy test fixture in a container workspace. */
 function setupFixture(workspace: string): void {
   execFileSync('bash', [SETUP_FIXTURE, TEST_CONTAINER, workspace], {
@@ -208,7 +223,7 @@ binary = "opencode"
         'claude -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js." --output-format json',
       );
       ccLog = agent.log;
-      expect(agent.exitCode).toBe(0);
+      expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-cc');
       expect(result.exitCode).toBe(0);
@@ -231,7 +246,7 @@ binary = "opencode"
         'codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       codexLog = agent.log;
-      expect(agent.exitCode).toBe(0);
+      expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-codex');
       expect(result.exitCode).toBe(0);
@@ -254,7 +269,7 @@ binary = "opencode"
         'gemini -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       geminiLog = agent.log;
-      expect(agent.exitCode).toBe(0);
+      expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-gemini');
       expect(result.exitCode).toBe(0);
@@ -277,7 +292,7 @@ binary = "opencode"
         'opencode run -m moonshot/kimi-k2-0711-preview "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       opencodeLog = agent.log;
-      expect(agent.exitCode).toBe(0);
+      expect(agent.exitCode, diagnoseAgent(agent.exitCode, agent.log)).toBe(0);
 
       const result = verifyNpmTest('test-opencode');
       expect(result.exitCode).toBe(0);
@@ -286,27 +301,6 @@ binary = "opencode"
 
     it('OpenCode log has no permission prompts', () => {
       expect(opencodeLog).not.toMatch(PERMISSION_PATTERNS);
-    });
-
-    // ── Verification #10: all four agents sequentially ──────────────────
-
-    it('all four agents fix the bug sequentially', () => {
-      const agents = [
-        { workspace: 'test-seq-cc', cmd: 'claude -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js." --output-format json' },
-        { workspace: 'test-seq-codex', cmd: 'codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
-        { workspace: 'test-seq-gemini', cmd: 'gemini -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
-        { workspace: 'test-seq-opencode', cmd: 'opencode run -m moonshot/kimi-k2-0711-preview "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
-      ];
-
-      for (const { workspace, cmd } of agents) {
-        setupFixture(workspace);
-        const agent = runAgent(workspace, cmd);
-        expect(agent.exitCode).toBe(0);
-
-        const result = verifyNpmTest(workspace);
-        expect(result.exitCode).toBe(0);
-        expect(result.output).toContain('PASS');
-      }
     });
   },
 );
