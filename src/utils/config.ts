@@ -132,6 +132,8 @@ ANTHROPIC_API_KEY=
 CODEX_API_KEY=
 # Gemini CLI fallback (primary: NO_BROWSER OAuth in container)
 GEMINI_API_KEY=
+# OpenCode / Kimi K2 (Moonshot AI)
+MOONSHOT_API_KEY=
 `;
 
 /**

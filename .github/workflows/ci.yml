@@ -91,13 +91,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Mask API keys
+        if: github.event_name == 'push'
+        run: |
+          for secret in \
+            "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" \
+            "${{ secrets.CODEX_API_KEY }}" \
+            "${{ secrets.GEMINI_API_KEY }}" \
+            "${{ secrets.MOONSHOT_API_KEY }}"; do
+            [ -n "$secret" ] && echo "::add-mask::$secret"
+          done
+
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Pull sandbox image
-        run: podman pull ghcr.io/sublang-dev/iteron-sandbox:dev-latest
+        run: |
+          podman pull ghcr.io/sublang-dev/iteron-sandbox:dev-latest
+          echo "::notice::Image digest: $(podman inspect --format '{{.Digest}}' ghcr.io/sublang-dev/iteron-sandbox:dev-latest)"
 
       - name: Run integration tests against sandbox image
         env:
           ITERON_TEST_IMAGE: ghcr.io/sublang-dev/iteron-sandbox:dev-latest
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ github.event_name == 'push' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          CODEX_API_KEY: ${{ github.event_name == 'push' && secrets.CODEX_API_KEY || '' }}
+          GEMINI_API_KEY: ${{ github.event_name == 'push' && secrets.GEMINI_API_KEY || '' }}
+          MOONSHOT_API_KEY: ${{ github.event_name == 'push' && secrets.MOONSHOT_API_KEY || '' }}
         run: npm run test:integration

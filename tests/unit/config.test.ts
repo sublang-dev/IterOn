@@ -148,6 +148,7 @@ describe('writeEnvTemplate', () => {
     expect(content).toContain('ANTHROPIC_API_KEY=');
     expect(content).toContain('CODEX_API_KEY=');
     expect(content).toContain('GEMINI_API_KEY=');
+    expect(content).toContain('MOONSHOT_API_KEY=');
   });
 
   it('is idempotent (returns false on second call)', async () => {

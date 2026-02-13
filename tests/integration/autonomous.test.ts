@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 SubLang International <https://www.sublang.ai>
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { rm, mkdir } from 'node:fs/promises';
@@ -30,6 +30,10 @@ function podmanAvailable(): boolean {
 }
 
 const HAS_PODMAN = podmanAvailable();
+
+/** At least one agent auth key must be set for autonomous tests to be meaningful. */
+const AUTH_KEYS = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'CODEX_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY'];
+const HAS_AUTH = AUTH_KEYS.some((k) => !!process.env[k]);
 
 function podmanExecSync(args: string[], options?: { timeout?: number }): string {
   return execFileSync('podman', args, {
@@ -92,8 +96,8 @@ async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['rm', '-f', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
 }
 
-// Skip entirely when no sandbox image or no Podman — these tests need real agents.
-describe.skipIf(!HAS_PODMAN || !HAS_SANDBOX_IMAGE)(
+// Skip when no sandbox image, no Podman, or no auth keys — these tests need real agents.
+describe.skipIf(!HAS_PODMAN || !HAS_SANDBOX_IMAGE || !HAS_AUTH)(
   'IR-006 autonomous execution (integration)',
   { timeout: 300_000, sequential: true },
   () => {
@@ -125,15 +129,44 @@ binary = "opencode"
       writeFileSync(join(configDir, 'config.toml'), configToml, 'utf-8');
 
       // .env must supply valid auth tokens; tests rely on IR-005 headless auth.
-      // The real .env is expected at ~/.iteron/.env — copy it for the test.
+      // Start from ~/.iteron/.env as baseline, then overlay process.env values
+      // so CI-injected secrets and local credentials merge correctly.
+      const envFile = join(configDir, '.env');
+      const envMap = new Map<string, string>();
+
+      // Baseline: copy from ~/.iteron/.env if it exists.
       const realEnv = join(process.env.HOME ?? '', '.iteron', '.env');
       try {
         const envContent = execFileSync('cat', [realEnv], { encoding: 'utf-8' });
-        writeFileSync(join(configDir, '.env'), envContent, 'utf-8');
-      } catch {
-        // Fall back to empty .env; individual tests will fail with auth errors.
-        writeFileSync(join(configDir, '.env'), '# no auth tokens available\n', 'utf-8');
+        for (const line of envContent.split('\n')) {
+          const match = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+          if (match) envMap.set(match[1], match[2]);
+        }
+      } catch { /* no baseline file */ }
+
+      // Overlay: process.env values take precedence (CI injects secrets this way).
+      const envKeys = [
+        'CLAUDE_CODE_OAUTH_TOKEN',
+        'ANTHROPIC_API_KEY',
+        'CODEX_API_KEY',
+        'GEMINI_API_KEY',
+        'MOONSHOT_API_KEY',
+      ];
+      for (const k of envKeys) {
+        if (process.env[k]) envMap.set(k, process.env[k]!);
       }
+
+      if (envMap.size > 0) {
+        writeFileSync(envFile, [...envMap].map(([k, v]) => `${k}=${v}`).join('\n') + '\n', 'utf-8');
+      } else {
+        writeFileSync(envFile, '# no auth tokens available\n', 'utf-8');
+      }
+      chmodSync(envFile, 0o600);
+
+      // Best-effort cleanup of secrets on unexpected exit (won't fire on SIGKILL).
+      process.on('exit', () => {
+        try { rmSync(configDir, { recursive: true, force: true }); } catch {}
+      });
 
       // Remove stale volume so image autonomy configs propagate to a fresh one.
       try { execFileSync('podman', ['volume', 'rm', '-f', 'iteron-data'], { stdio: 'ignore' }); } catch {}
@@ -241,7 +274,7 @@ binary = "opencode"
 
       const agent = runAgent(
         'test-opencode',
-        'opencode run "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
+        'opencode run -m moonshot/kimi-k2-0711-preview "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."',
       );
       opencodeLog = agent.log;
       expect(agent.exitCode).toBe(0);
@@ -262,7 +295,7 @@ binary = "opencode"
         { workspace: 'test-seq-cc', cmd: 'claude -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js." --output-format json' },
         { workspace: 'test-seq-codex', cmd: 'codex exec "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
         { workspace: 'test-seq-gemini', cmd: 'gemini -p "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
-        { workspace: 'test-seq-opencode', cmd: 'opencode run "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
+        { workspace: 'test-seq-opencode', cmd: 'opencode run -m moonshot/kimi-k2-0711-preview "Fix the bug in src/calc.js so that npm test passes. Do not modify tests/test_calc.js."' },
       ];
 
       for (const { workspace, cmd } of agents) {
