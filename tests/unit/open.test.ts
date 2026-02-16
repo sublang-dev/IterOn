@@ -37,8 +37,22 @@ describe('resolveArgs', () => {
     expect(result.workDir).toBe('/home/iteron');
   });
 
+  it('1 arg shell-expanded ~/ (trailing slash) → shell in home', () => {
+    const result = resolveArgs([`${homedir()}/`], agents);
+    expect(result.binary).toBe('bash');
+    expect(result.sessionName).toBe('bash@~');
+    expect(result.workDir).toBe('/home/iteron');
+  });
+
   it('2 args shell-expanded ~ and agent → agent in home', () => {
     const result = resolveArgs([homedir(), 'claude'], agents);
+    expect(result.binary).toBe('claude');
+    expect(result.sessionName).toBe('claude@~');
+    expect(result.workDir).toBe('/home/iteron');
+  });
+
+  it('2 args shell-expanded ~/ (trailing slash) and agent → agent in home', () => {
+    const result = resolveArgs([`${homedir()}/`, 'claude'], agents);
     expect(result.binary).toBe('claude');
     expect(result.sessionName).toBe('claude@~');
     expect(result.workDir).toBe('/home/iteron');

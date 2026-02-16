@@ -19,7 +19,8 @@ const CONTAINER_HOME = '/home/iteron';
  * host home directory, map it back to the literal `~` token.
  */
 function normalizeHome(arg: string): string {
-  return arg === homedir() ? '~' : arg;
+  const stripped = arg.replace(/\/+$/, '');
+  return (arg === '~' || stripped === homedir()) ? '~' : arg;
 }
 
 /**
