@@ -204,10 +204,6 @@ Sessions are named `{command}@{location}`:
 - `bash@~`
 - `codex@feature-x`
 
-### Deprecated Form
-
-The old `iteron open <agent> [workspace]` syntax is still recognized for backward compatibility. When detected, the CLI prints a migration hint to stderr and executes the intended command. This form will be removed in a future release.
-
 ### Examples
 
 ```bash

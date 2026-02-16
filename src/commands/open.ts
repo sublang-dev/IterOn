@@ -14,38 +14,6 @@ import { buildSessionName, validateSessionToken } from '../utils/session.js';
 const CONTAINER_HOME = '/home/iteron';
 
 /**
- * Detect deprecated agent-first argument form and return swapped args.
- *
- * Old form: `iteron open <agent> [workspace]`
- * New form: `iteron open <workspace> [command]`
- *
- * Returns swapped args and a hint message, or null if not deprecated.
- */
-export function detectDeprecatedForm(
-  args: string[],
-  agents: IteronConfig['agents'],
-): { swapped: string[]; hint: string } | null {
-  if (args.length === 1 && agents[args[0]]) {
-    // `iteron open claude` → `iteron open ~ claude`
-    return {
-      swapped: ['~', args[0]],
-      hint: `Deprecated: use "iteron open ~ ${args[0]}" instead of "iteron open ${args[0]}". Old form will be removed in a future release.`,
-    };
-  }
-  if (args.length === 2 && agents[args[0]] && !agents[args[1]]) {
-    const wsErr = validateWorkspace(args[1]);
-    if (!wsErr || args[1] === '~') {
-      // `iteron open claude myproject` → `iteron open myproject claude`
-      return {
-        swapped: [args[1], args[0]],
-        hint: `Deprecated: use "iteron open ${args[1]} ${args[0]}" instead of "iteron open ${args[0]} ${args[1]}". Old form will be removed in a future release.`,
-      };
-    }
-  }
-  return null;
-}
-
-/**
  * Resolve arguments into command, session name, and working directory.
  *
  * Grammar: `iteron open [workspace] [command] [-- args]`
@@ -132,14 +100,6 @@ export async function openCommand(
     const positionalArgs: string[] = [];
     if (workspace !== undefined) positionalArgs.push(workspace);
     if (command !== undefined) positionalArgs.push(command);
-
-    // Detect deprecated agent-first form and swap args
-    const deprecated = detectDeprecatedForm(positionalArgs, config.agents);
-    if (deprecated) {
-      console.error(deprecated.hint);
-      positionalArgs.length = 0;
-      positionalArgs.push(...deprecated.swapped);
-    }
 
     const resolved = resolveArgs(positionalArgs, config.agents);
 

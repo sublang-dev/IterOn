@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 SubLang International <https://sublang.ai>
 
 import { describe, it, expect } from 'vitest';
-import { detectDeprecatedForm, extractPassthroughArgs, resolveArgs } from '../../src/commands/open.js';
+import { extractPassthroughArgs, resolveArgs } from '../../src/commands/open.js';
 import { validateWorkspace } from '../../src/utils/config.js';
 import type { IteronConfig } from '../../src/utils/config.js';
 
@@ -40,6 +40,14 @@ describe('resolveArgs', () => {
     const result = resolveArgs(['claude'], agents);
     expect(result.binary).toBe('bash');
     expect(result.sessionName).toBe('bash@claude');
+    expect(result.workDir).toBe('/home/iteron/claude');
+  });
+
+  it('2 args old agent-first order → no swap, workspace=agent name', () => {
+    // Regression: ensure no legacy rewriting of agent-first form
+    const result = resolveArgs(['claude', 'myproject'], agents);
+    expect(result.binary).toBe('myproject');
+    expect(result.sessionName).toBe('myproject@claude');
     expect(result.workDir).toBe('/home/iteron/claude');
   });
 
@@ -95,47 +103,6 @@ describe('resolveArgs', () => {
   it('rejects configured agent name containing @', () => {
     const badAgents = { ...agents, 'bad@agent': { binary: 'bad' } };
     expect(() => resolveArgs(['~', 'bad@agent'], badAgents)).toThrow('@');
-  });
-});
-
-describe('detectDeprecatedForm', () => {
-  it('1-arg matching agent → deprecated', () => {
-    const result = detectDeprecatedForm(['claude'], agents);
-    expect(result).not.toBeNull();
-    expect(result!.swapped).toEqual(['~', 'claude']);
-    expect(result!.hint).toContain('Deprecated');
-    expect(result!.hint).toContain('iteron open ~ claude');
-  });
-
-  it('1-arg not matching agent → not deprecated', () => {
-    expect(detectDeprecatedForm(['myproject'], agents)).toBeNull();
-  });
-
-  it('2-arg agent-first with valid workspace → deprecated', () => {
-    const result = detectDeprecatedForm(['claude', 'myproject'], agents);
-    expect(result).not.toBeNull();
-    expect(result!.swapped).toEqual(['myproject', 'claude']);
-    expect(result!.hint).toContain('Deprecated');
-    expect(result!.hint).toContain('iteron open myproject claude');
-  });
-
-  it('2-arg agent-first with ~ workspace → deprecated', () => {
-    const result = detectDeprecatedForm(['claude', '~'], agents);
-    expect(result).not.toBeNull();
-    expect(result!.swapped).toEqual(['~', 'claude']);
-  });
-
-  it('2-arg where both are agents → not deprecated (new grammar)', () => {
-    // e.g. `iteron open claude codex` — under new grammar workspace=claude, command=codex
-    expect(detectDeprecatedForm(['claude', 'codex'], agents)).toBeNull();
-  });
-
-  it('2-arg non-agent first → not deprecated', () => {
-    expect(detectDeprecatedForm(['myproject', 'claude'], agents)).toBeNull();
-  });
-
-  it('0 args → not deprecated', () => {
-    expect(detectDeprecatedForm([], agents)).toBeNull();
   });
 });
 

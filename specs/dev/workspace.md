@@ -28,7 +28,7 @@ name shall be treated as command and location shall default to `~`.
 
 Where agent names, command names, or workspace names are used in
 session identity, each shall reject the reserved delimiter `@`
-([DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-agent-workspace----args)).
+([DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-workspace-command----args)).
 
 ### WSD-004
 

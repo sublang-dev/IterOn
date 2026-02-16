@@ -23,8 +23,6 @@ follow ([DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-works
 - 2 args where second token is not a configured agent: second token
   treated as raw command
 - Arguments after the first `--` are forwarded to the resolved command
-- Deprecated: old `iteron open <agent> [workspace]` form is detected
-  and executed with a migration hint on stderr
 
 ### WSX-002
 
@@ -62,4 +60,4 @@ Where the sandbox container is not running, when a user runs
 `iteron open`, `iteron ls`, or `iteron rm`, the CLI shall
 exit non-zero with a message indicating the container is not
 running and suggesting `iteron start`
-([DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-agent-workspace----args)).
+([DR-002 §4](../decisions/002-iteron-cli-commands.md#4-iteron-open-workspace-command----args)).

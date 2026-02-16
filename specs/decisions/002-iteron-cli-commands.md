@@ -78,8 +78,6 @@ Open a workspace with an agent or shell. Creates workspace directory and tmux se
 
 **Agent names**: claude, codex, gemini, opencode (from `~/.iteron/config.toml`). When the second argument matches a configured agent, the agent binary is used; otherwise the argument is run as-is.
 
-**Deprecated form**: The old `iteron open <agent> [workspace]` syntax is detected and executed with a migration hint on stderr. It will be removed in a future release.
-
 **Tmux control**: Full tmux access once inside (split panes, customize via `~/.tmux.conf`)
 
 ---
