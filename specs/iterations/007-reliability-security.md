@@ -13,6 +13,7 @@ Validate that the local sandbox survives extended autonomous agent runs (8 hours
 - [ ] Security hardening validated (rootless, cap-drop, read-only, no-new-privileges)
 - [ ] Vulnerability scan clean (no critical/high CVEs)
 - [ ] Documentation: installation guide, CLI reference, agent configuration, workspace guide, troubleshooting
+- [ ] User-local binary directory (`~/.local/bin`) on PATH
 
 ## Tasks
 
@@ -56,6 +57,14 @@ Per [DR-001 §1](../decisions/001-sandbox-architecture.md#1-oci-container-as-the
 - **Tmux quick reference**: detach (`Ctrl-B D`), reattach (`iteron open`), pane splits, scrollback, custom `~/.tmux.conf`
 - **Troubleshooting**: Podman not installed, container not running, OOM, auth failures, agent permission prompts
 
+### 5. User-local binary directory
+
+Per [DR-001 §6](../decisions/001-sandbox-architecture.md#6-user-local-tool-layer): `~/.local/bin` provides a persistent, user-writable directory for standalone binaries.
+
+- Create `~/.local/bin` in the Dockerfile, owned by `iteron:iteron`
+- Add `ENV PATH="/home/iteron/.local/bin:${PATH}"` so binaries placed there are found by name
+- The directory persists via the `iteron-data` volume mount at `/home/iteron`
+
 ## Verification
 
 | # | Test | Expected |
@@ -72,6 +81,8 @@ Per [DR-001 §1](../decisions/001-sandbox-architecture.md#1-oci-container-as-the
 | 10 | `trivy image <image> --severity CRITICAL,HIGH --exit-code 1` | Exit 0 (no critical/high CVEs) |
 | 11 | New user follows installation guide from step 1 to running `iteron open claude-code` | Completes without external help; agent prompt appears |
 | 12 | CLI reference documents all 6 commands | Each command has: synopsis, options, examples, exit codes |
+| 13 | `podman run --rm <image> test -d /home/iteron/.local/bin -a -w /home/iteron/.local/bin` | Exit 0 |
+| 14 | `podman run --rm <image> sh -c 'cp /usr/bin/true ~/.local/bin/mytool && mytool'` | Exit 0 |
 
 ## Risks
 

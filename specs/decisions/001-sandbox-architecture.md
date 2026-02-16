@@ -11,13 +11,13 @@ Accepted
 
 We need to run CLI coding agents (Claude Code, Codex CLI, Gemini CLI, OpenCode) autonomously with full permissions inside isolated sandboxes. The solution must work locally on macOS, Linux, and Windows with minimal installation friction; deploy to AWS for long-running autonomous tasks; support subscription and API-key auth; and map to Tmux outside the sandbox for user interaction.
 
-The agents have conflicting runtimes: Gemini CLI requires Node 20+ \[1], Claude Code requires Node 18+ \[2], Codex CLI is a Rust binary available in both glibc and musl-linked variants \[3], and OpenCode is a TypeScript CLI published on npm as `opencode-ai` \[4]. Node.js 22 LTS on Debian Bookworm Slim (~30 MB \[5]) satisfies the Node-based agents; Codex CLI uses its statically-linked musl binary, which runs on any Linux regardless of the system libc. All three major agents already use internal sandboxing (Claude Code and Codex CLI use sandbox-exec on macOS \[6]\[7] and Bubblewrap on Linux \[6]\[38]; Gemini CLI uses sandbox-exec on macOS and container-based sandboxing cross-platform \[8]), but these are platform-specific, do not encapsulate runtimes or resolve dependency conflicts, and have no managed AWS equivalent. They remain useful as defense-in-depth inside the container.
+The agents have conflicting runtimes: Gemini CLI requires Node 20+ \[1], Claude Code requires Node 18+ \[2], Codex CLI is a Rust binary available in both glibc and musl-linked variants \[3], and OpenCode is a TypeScript CLI published on npm as `opencode-ai` \[4]. Node.js 22 LTS on Debian Bookworm Slim (~30 MB \[5]) satisfies the Node-based agents; Codex CLI uses its statically-linked musl binary, which runs on any Linux regardless of the system libc. All three major agents already use internal sandboxing (Claude Code and Codex CLI use sandbox-exec on macOS \[6]\[7] and Bubblewrap on Linux \[6]\[36]; Gemini CLI uses sandbox-exec on macOS and container-based sandboxing cross-platform \[8]), but these are platform-specific, do not encapsulate runtimes or resolve dependency conflicts, and have no managed AWS equivalent. They remain useful as defense-in-depth inside the container.
 
 ## Decision
 
 ### 1. OCI container as the sandbox boundary
 
-A single OCI image based on `node:22-bookworm-slim` packages all agent runtimes. **Podman is the container runtime**, chosen over Docker for three reasons: it is daemonless and rootless by default \[9]\[35], removing the attack surface of a privileged daemon; it has no licensing cost (Apache 2.0), whereas Docker Desktop requires paid subscriptions for companies with 250+ employees or >$10M revenue \[36]; and its daemonless architecture \[9] lets IterOn stop the VM when no sandboxes are running, unlike Docker Desktop's always-on daemon (~1–3 GB idle on macOS/Windows \[28]). IterOn's install script provisions Podman and manages the VM lifecycle on macOS/Windows (`podman machine init/start/stop`), so users never interact with Podman directly.
+A single OCI image based on `node:22-bookworm-slim` packages all agent runtimes. **Podman is the container runtime**, chosen over Docker for three reasons: it is daemonless and rootless by default \[9]\[34], removing the attack surface of a privileged daemon; it has no licensing cost (Apache 2.0), whereas Docker Desktop requires paid subscriptions for companies with 250+ employees or >$10M revenue \[35]; and its daemonless architecture \[9] lets IterOn stop the VM when no sandboxes are running, unlike Docker Desktop's always-on daemon (~1–3 GB idle on macOS/Windows \[28]). IterOn's install script provisions Podman and manages the VM lifecycle on macOS/Windows (`podman machine init/start/stop`), so users never interact with Podman directly.
 
 Multi-arch builds target `linux/amd64` and `linux/arm64` for Graviton \[10] and Apple Silicon. Agents run with full permissions *inside* the container. The container itself is the security boundary: `--cap-drop ALL`, `--security-opt no-new-privileges`, `--read-only` root filesystem, with writable `/tmp` and mounted volumes for workspace and agent state.
 
@@ -35,12 +35,12 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 
 **Subscription auth (primary):** Each agent uses the most reliable headless mechanism for subscription-based auth:
 
-- **Claude Code:** `claude setup-token` \[39] generates a ~1-year OAuth token on a machine with a browser (Pro/Max subscription); inject as `CLAUDE_CODE_OAUTH_TOKEN` env var. `hasCompletedOnboarding: true` in `~/.claude.json` is required to skip the first-run prompt \[18]. Direct credential forwarding is not viable: macOS stores OAuth tokens exclusively in Keychain \[40], and token refresh is broken in copied credentials \[41].
-- **Codex CLI:** `codex login --device-auth` \[16] displays a URL and one-time code in the terminal; user completes auth on any browser. Works through IterOn's tmux interaction. Teams/Enterprise admins must enable device-code auth \[42]. Credential forwarding via `docker cp` of `~/.codex/auth.json` is an officially documented alternative \[42] but risks token desync on concurrent host/container use (see \[43]).
-- **Gemini CLI:** `NO_BROWSER=true` triggers a PKCE OAuth flow where the CLI prints an auth URL and the user pastes back the authorization code; works through IterOn's tmux interaction. This env var is referenced in CLI error messages but not yet in official auth guides \[17]; a v0.18.0 regression was fixed in v0.18.4 \[44]. Google Cloud service accounts via Vertex AI \[17] serve enterprise deployments.
-- **OpenCode:** Mount host `~/.local/share/opencode/auth.json` into the container \[45] (file-based, no Keychain involvement). Alternatively, inject provider env vars directly.
+- **Claude Code:** `claude setup-token` \[37] generates a ~1-year OAuth token on a machine with a browser (Pro/Max subscription); inject as `CLAUDE_CODE_OAUTH_TOKEN` env var. `hasCompletedOnboarding: true` in `~/.claude.json` is required to skip the first-run prompt \[18]. Direct credential forwarding is not viable: macOS stores OAuth tokens exclusively in Keychain \[38], and token refresh is broken in copied credentials \[39].
+- **Codex CLI:** `codex login --device-auth` \[16] displays a URL and one-time code in the terminal; user completes auth on any browser. Works through IterOn's tmux interaction. Teams/Enterprise admins must enable device-code auth \[40]. Credential forwarding via `docker cp` of `~/.codex/auth.json` is an officially documented alternative \[40] but risks token desync on concurrent host/container use (see \[41]).
+- **Gemini CLI:** `NO_BROWSER=true` triggers a PKCE OAuth flow where the CLI prints an auth URL and the user pastes back the authorization code; works through IterOn's tmux interaction. This env var is referenced in CLI error messages but not yet in official auth guides \[17]; a v0.18.0 regression was fixed in v0.18.4 \[42]. Google Cloud service accounts via Vertex AI \[17] serve enterprise deployments.
+- **OpenCode:** Mount host `~/.local/share/opencode/auth.json` into the container \[43] (file-based, no Keychain involvement). Alternatively, inject provider env vars directly.
 
-**API keys (fallback):** Inject per-agent keys as environment variables (`ANTHROPIC_API_KEY`, `CODEX_API_KEY` \[34] (`codex exec` only), `GEMINI_API_KEY` \[17]) via `~/.iteron/.env`, AWS Secrets Manager, or Vault.
+**API keys (fallback):** Inject per-agent keys as environment variables (`ANTHROPIC_API_KEY`, `CODEX_API_KEY` \[33] (`codex exec` only), `GEMINI_API_KEY` \[17]) via `~/.iteron/.env`, AWS Secrets Manager, or Vault.
 
 **Dynamic retrieval:** Claude Code's `apiKeyHelper` \[19] runs a script returning fresh keys on each invocation, with refresh controlled by `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`. Must not coexist with `CLAUDE_CODE_OAUTH_TOKEN`.
 
@@ -65,26 +65,35 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 | Interaction | `podman exec` | SSM / `ecs execute-command` |
 | Credentials | Local `.env` or proxy | Secrets Manager + proxy |
 
+### 6. User-local tool layer
+
+The image installs tools that need shared libraries or complex dependency chains (e.g., git, curl, tmux, Node-based agents) via apt and npm at build time — the **image layer**. For standalone, statically-linked binaries (e.g., `gh`, `rg`, `fd`), a **user-local layer** at `~/.local/bin` provides a persistent, user-writable install target:
+
+- `~/.local/bin` is created in the Dockerfile (owned by `iteron:iteron`) and prepended to `PATH` via `ENV`. This follows common user-local PATH ordering and intentionally allows user-installed binaries to shadow image-layer commands (e.g., a newer `git`). Agents debugging unexpected tool behavior should check `command -v <cmd>` for shadowed paths.
+- Because `/home/iteron` is backed by the `iteron-data` volume, binaries placed there persist across container restarts without rebuilding the image.
+- A future `tools.toml` manifest will let users declaratively list standalone tools; a reconciler will download missing binaries into `~/.local/bin` on container start. This mechanism is not yet implemented.
+
 ## Consequences
 
 - **Easy local install** — IterOn's install script provisions Podman automatically. No manual container commands needed; no KVM, Bubblewrap, or platform-specific tools.
 - **No licensing cost** — Podman is Apache 2.0 \[9]. No per-seat subscription required regardless of organization size.
-- **Rootless security by default** — no privileged daemon; container UIDs map to unprivileged host UIDs \[9]\[35].
+- **Rootless security by default** — no privileged daemon; container UIDs map to unprivileged host UIDs \[9]\[34].
 - **Lighter footprint** — no idle daemon process. IterOn auto-starts `podman machine` on sandbox launch and stops it when idle, reclaiming VM memory.
 - **Full agent autonomy** — unrestricted shell, filesystem, and network access within the container. No permission prompts.
 - **Portable security** — same OCI image locally and on Fargate; Firecracker isolation automatic in production.
 - **Tmux persistence** — in-container tmux survives connection drops; users inspect agents at any time.
 - **Subscription-first auth** — agents use subscription credentials headlessly via setup tokens (Claude Code), device code flow (Codex CLI), `NO_BROWSER` PKCE OAuth (Gemini CLI), and credential forwarding (OpenCode). Proxy-based credential management requires API keys, not subscription tokens \[23].
+- **User-extensible tooling** — `~/.local/bin` on PATH lets users and agents install standalone binaries that persist across restarts without rebuilding the image.
 
 ### Rejected alternatives
 
 | Alternative | Reason |
 | --- | --- |
-| Docker Desktop | Requires paid subscription for larger organizations \[36]; privileged daemon is an unnecessary attack surface; ~1–3 GB idle memory on macOS/Windows \[28] |
-| OS-native sandboxing only | Platform-fragmented; no environment encapsulation; no AWS path \[30] |
-| Firecracker locally | Requires Linux with KVM; no macOS/Windows support \[31] |
-| gVisor locally | Linux-only; overhead varies by workload \[32]; doesn't solve cross-platform |
-| WASM sandboxes | Node.js WASI is experimental \[33]; no production path for full agent runtimes |
+| Docker Desktop | Requires paid subscription for larger organizations \[35]; privileged daemon is an unnecessary attack surface; ~1–3 GB idle memory on macOS/Windows \[28] |
+| OS-native sandboxing only | Platform-fragmented; no environment encapsulation; no AWS path \[29] |
+| Firecracker locally | Requires Linux with KVM; no macOS/Windows support \[30] |
+| gVisor locally | Linux-only; overhead varies by workload \[31]; doesn't solve cross-platform |
+| WASM sandboxes | Node.js WASI is experimental \[32]; no production path for full agent runtimes |
 
 ## References
 
@@ -116,20 +125,18 @@ Each agent runs inside a **named tmux session within the container**. IterOn pro
 26. Amazon EFS — <https://docs.aws.amazon.com/efs/latest/ug/how-it-works.html>
 27. SSM Session Manager — <https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html>
 28. Docker Desktop macOS idle memory ~1–3 GB — <https://github.com/docker/for-mac/issues/6120>
-29. Apple Containerization framework (WWDC 2025; may further reduce VM overhead) — <https://thenewstack.io/what-you-need-to-know-about-apples-new-container-framework/>
-30. sandbox-exec deprecated (macOS man page); still used by Bazel, SwiftPM, Claude Code, Codex CLI, Gemini CLI
-31. Firecracker requires Linux+KVM — <https://github.com/firecracker-microvm/firecracker>
-32. gVisor performance — <https://gvisor.dev/docs/architecture_guide/performance/>
-33. Node.js WASI experimental — <https://nodejs.org/api/wasi.html>
-34. Codex CLI non-interactive mode (`CODEX_API_KEY` is `codex exec` only) — <https://developers.openai.com/codex/noninteractive/>
-35. Podman rootless containers — <https://developers.redhat.com/blog/2020/09/25/rootless-containers-with-podman-the-basics>
-36. Docker Desktop subscription required for 250+ employees or >$10M revenue — <https://docs.docker.com/subscription/desktop-license/>
-37. Podman CLI compatible with Docker — <https://podman-desktop.io/docs/migrating-from-docker/managing-docker-compatibility>
-38. Codex CLI Linux sandbox (Bubblewrap, feature-gated) — <https://github.com/openai/codex/blob/main/codex-rs/linux-sandbox/README.md>
-39. Claude Code `setup-token` for headless OAuth — <https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md>
-40. Claude Code stores OAuth in macOS Keychain only (deletes credential file), GitHub #10039 — <https://github.com/anthropics/claude-code/issues/10039>
-41. Claude Code token refresh broken in copied credentials, GitHub #21765 — <https://github.com/anthropics/claude-code/issues/21765>
-42. Codex CLI device-code auth requires admin enablement — <https://developers.openai.com/codex/auth/>
-43. Codex CLI single-use rotating refresh tokens, GitHub #6036 — <https://github.com/openai/codex/issues/6036>
-44. Gemini CLI `NO_BROWSER` regression fixed in v0.18.4, GitHub #13853 — <https://github.com/google-gemini/gemini-cli/issues/13853>
-45. OpenCode file-based credential storage (no Keychain) — <https://opencode.ai/docs/providers/>
+29. sandbox-exec deprecated (macOS man page); still used by Bazel, SwiftPM, Claude Code, Codex CLI, Gemini CLI
+30. Firecracker requires Linux+KVM — <https://github.com/firecracker-microvm/firecracker>
+31. gVisor performance — <https://gvisor.dev/docs/architecture_guide/performance/>
+32. Node.js WASI experimental — <https://nodejs.org/api/wasi.html>
+33. Codex CLI non-interactive mode (`CODEX_API_KEY` is `codex exec` only) — <https://developers.openai.com/codex/noninteractive/>
+34. Podman rootless containers — <https://developers.redhat.com/blog/2020/09/25/rootless-containers-with-podman-the-basics>
+35. Docker Desktop subscription required for 250+ employees or >$10M revenue — <https://docs.docker.com/subscription/desktop-license/>
+36. Codex CLI Linux sandbox (Bubblewrap, feature-gated) — <https://github.com/openai/codex/blob/main/codex-rs/linux-sandbox/README.md>
+37. Claude Code `setup-token` for headless OAuth — <https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md>
+38. Claude Code stores OAuth in macOS Keychain only (deletes credential file), GitHub #10039 — <https://github.com/anthropics/claude-code/issues/10039>
+39. Claude Code token refresh broken in copied credentials, GitHub #21765 — <https://github.com/anthropics/claude-code/issues/21765>
+40. Codex CLI device-code auth requires admin enablement — <https://developers.openai.com/codex/auth/>
+41. Codex CLI single-use rotating refresh tokens, GitHub #6036 — <https://github.com/openai/codex/issues/6036>
+42. Gemini CLI `NO_BROWSER` regression fixed in v0.18.4, GitHub #13853 — <https://github.com/google-gemini/gemini-cli/issues/13853>
+43. OpenCode file-based credential storage (no Keychain) — <https://opencode.ai/docs/providers/>
