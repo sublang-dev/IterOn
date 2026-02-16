@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 SubLang International <https://sublang.ai>
+
+# Accepted OS-level CVEs with no fix in Debian Bookworm.
+# Mitigated by container hardening: cap-drop ALL, read-only rootfs,
+# no-new-privileges, rootless mode.
+# Reassess on base image upgrade to Debian Trixie or Node 24.
+
+# zlib: integer overflow in zipOpenNewFileInZip4_64 (minizip); will_not_fix by Debian
+CVE-2023-45853
+
+# openldap: null pointer dereference in ber_memalloc_x; transitive dep via libcurl
+CVE-2023-2953
+
+# git: arbitrary code execution via crafted repository
+CVE-2025-48384
+
+# git: arbitrary file writes via crafted repository
+CVE-2025-48385
+
+# glibc: integer overflow in memalign
+CVE-2026-0861

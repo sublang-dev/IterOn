@@ -14,6 +14,7 @@ RUN npm install -g \
       @anthropic-ai/claude-code \
       @google/gemini-cli \
       opencode-ai \
+ && npm install -g npm@11.10.0 \
  && npm cache clean --force
 
 # ---------- Codex CLI (standalone musl binary) ----------

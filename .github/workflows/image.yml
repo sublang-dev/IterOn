@@ -76,6 +76,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
           format: table
+          trivyignores: image/.trivyignore
 
       - name: Run Trivy (SARIF)
         if: always()
@@ -84,6 +85,7 @@ jobs:
           image-ref: ${{ steps.image-tag.outputs.tag }}
           format: sarif
           output: trivy-results.sarif
+          trivyignores: image/.trivyignore
 
       - name: Upload SARIF results
         if: always()

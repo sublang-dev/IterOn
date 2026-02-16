@@ -4,10 +4,14 @@
 
 # Run Trivy vulnerability scan on the iteron-sandbox image.
 # Usage: scripts/scan-image.sh [IMAGE_TAG]
-# Exits non-zero if CRITICAL or HIGH CVEs are found.
+# Exits non-zero if CRITICAL or HIGH CVEs are found (excluding accepted CVEs
+# listed in image/.trivyignore).
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+IGNOREFILE="${REPO_ROOT}/image/.trivyignore"
 IMAGE="${1:-iteron-sandbox:latest}"
 
 if ! command -v trivy &>/dev/null; then
@@ -16,4 +20,4 @@ if ! command -v trivy &>/dev/null; then
 fi
 
 echo "Scanning ${IMAGE} for CRITICAL/HIGH vulnerabilities..."
-trivy image --severity CRITICAL,HIGH --exit-code 1 "$IMAGE"
+trivy image --severity CRITICAL,HIGH --exit-code 1 --ignorefile "$IGNOREFILE" "$IMAGE"
