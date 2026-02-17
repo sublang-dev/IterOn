@@ -7,9 +7,7 @@ on:
       - '**.md'
       - 'docs/**'
       - 'specs/**'
-      - 'image/**'
       - 'assets/**'
-      - 'scaffolding/**'
       - 'LICENSE*'
   pull_request:
     branches: [main]
@@ -17,9 +15,7 @@ on:
       - '**.md'
       - 'docs/**'
       - 'specs/**'
-      - 'image/**'
       - 'assets/**'
-      - 'scaffolding/**'
       - 'LICENSE*'
 
 permissions:
