@@ -387,8 +387,8 @@ mode = "off"
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
 
-    const mounts = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .Mounts}}']);
-    expect(mounts).not.toContain('/run/iteron/ssh');
+    const tmpfs = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .HostConfig.Tmpfs}}']);
+    expect(tmpfs).not.toContain('/run/iteron/ssh');
   });
 
   it('stops container after mode=off test', async () => {
@@ -410,8 +410,8 @@ binary = "claude"
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
 
-    const mounts = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .Mounts}}']);
-    expect(mounts).not.toContain('/run/iteron/ssh');
+    const tmpfs = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .HostConfig.Tmpfs}}']);
+    expect(tmpfs).not.toContain('/run/iteron/ssh');
   });
 
   it('stops container after absent-auth test', async () => {
@@ -446,8 +446,8 @@ keyfile = "/nonexistent/path/id_ed25519"
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not found on host'));
     warnSpy.mockRestore();
 
-    const mounts = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .Mounts}}']);
-    expect(mounts).not.toContain('/run/iteron/ssh');
+    const tmpfs = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .HostConfig.Tmpfs}}']);
+    expect(tmpfs).not.toContain('/run/iteron/ssh');
 
     const { stopCommand } = await import('../../src/commands/stop.js');
     await stopCommand();

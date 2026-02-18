@@ -12,6 +12,7 @@ import {
   isContainerRunning,
   containerExists,
   podmanExec,
+  podmanExecStdin,
   podmanErrorMessage,
 } from '../utils/podman.js';
 import { readConfig, resolveSshKeyPath, ENV_PATH } from '../utils/config.js';
@@ -74,7 +75,7 @@ export async function startCommand(): Promise<void> {
     if (sshKeyPath) {
       if (existsSync(sshKeyPath)) {
         sshKeyBasename = basename(sshKeyPath);
-        args.push('--tmpfs', '/run/iteron/ssh:size=4k');
+        args.push('--tmpfs', '/run/iteron/ssh:size=64k');
       } else {
         console.warn(`Warning: SSH keyfile "${sshKeyPath}" not found on host; skipping SSH mount.`);
       }
@@ -90,11 +91,13 @@ export async function startCommand(): Promise<void> {
     if (sshKeyBasename) {
       // Inject key into tmpfs as iteron (exec runs as container user) so
       // the file is owned by iteron with 0600 — no CAP_CHOWN needed.
+      // Key data is piped over stdin to avoid exposing it in argv.
       const keyData = await readFile(sshKeyPath!, 'utf-8');
       const keyDest = `/run/iteron/ssh/${sshKeyBasename}`;
-      await podmanExec(['exec', name, 'sh', '-c',
-        'printf "%s" "$1" > "$2" && chmod 0600 "$2"',
-        'iteron-ssh', keyData, keyDest]);
+      await podmanExecStdin(
+        ['exec', '-i', name, 'sh', '-c', `cat > "$1" && chmod 0600 "$1"`, 'iteron-ssh', keyDest],
+        keyData,
+      );
       // Write managed include file with IdentityFile directive
       await podmanExec(['exec', name, 'mkdir', '-p', '/home/iteron/.ssh/config.d']);
       await podmanExec(['exec', name, 'sh', '-c',

@@ -25,6 +25,27 @@ export function podmanExec(args: string[]): Promise<ExecResult> {
   });
 }
 
+/** Like podmanExec but pipes `stdin` data to the process. */
+export function podmanExecStdin(args: string[], stdin: string): Promise<ExecResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('podman', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+    child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+      } else {
+        const err = new Error(`podman ${args[0]} exited with code ${code}`);
+        reject(Object.assign(err, { stdout, stderr }));
+      }
+    });
+    child.on('error', reject);
+    child.stdin.end(stdin);
+  });
+}
+
 export async function isPodmanInstalled(): Promise<boolean> {
   try {
     await podmanExec(['--version']);
