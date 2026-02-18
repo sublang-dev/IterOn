@@ -55,8 +55,7 @@ binary = "opencode"
   writeFileSync(join(configDir, 'config.toml'), configToml, 'utf-8');
   writeFileSync(join(configDir, '.env'), 'ANTHROPIC_API_KEY=sk-test-123\n', 'utf-8');
 
-  // Ensure image and volume
-  try { execFileSync('podman', ['pull', TEST_IMAGE], { stdio: 'ignore' }); } catch {}
+  // Ensure volume exists (image is guaranteed by globalSetup)
   try { execFileSync('podman', ['volume', 'create', 'iteron-data'], { stdio: 'ignore' }); } catch {}
 
   // Start container

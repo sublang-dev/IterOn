@@ -7,11 +7,17 @@
  * If ITERON_TEST_IMAGE is not set (local run), builds iteron-sandbox:dev.
  *
  * Env flags:
- *   ITERON_TEST_IMAGE  — override the image (CI sets this); skips build entirely
- *   ITERON_FORCE_BUILD — rebuild even if iteron-sandbox:dev already exists locally
+ *   ITERON_TEST_IMAGE      — override the image (CI sets this); skips build entirely
+ *   ITERON_TEST_IMAGE_TAR  — pre-saved image tar (CI PR sets this); skips export
+ *   ITERON_FORCE_BUILD     — rebuild even if iteron-sandbox:dev already exists locally
  */
 
 import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { mkdtempSync, unlinkSync, rmdirSync } from 'node:fs';
+
+let createdTar = '';
 
 export async function setup(): Promise<void> {
   if (process.env.ITERON_TEST_IMAGE) return;
@@ -49,4 +55,25 @@ export async function setup(): Promise<void> {
   }
 
   process.env.ITERON_TEST_IMAGE = IMAGE;
+
+  // On native Linux, auth tests redirect XDG_DATA_HOME which moves
+  // rootless Podman's graphRoot to an empty temp dir.  Export the image
+  // to a tar so ensureImageLoaded() can reload it into redirected stores.
+  // macOS uses a Podman VM whose storage is immune to host XDG changes.
+  if (process.platform === 'linux' && !process.env.ITERON_TEST_IMAGE_TAR) {
+    const tar = join(mkdtempSync(join(tmpdir(), 'iteron-test-')), 'image.tar');
+    execFileSync('podman', ['save', '-o', tar, IMAGE], {
+      stdio: 'ignore',
+      timeout: 120_000,
+    });
+    process.env.ITERON_TEST_IMAGE_TAR = tar;
+    createdTar = tar;
+  }
+}
+
+export async function teardown(): Promise<void> {
+  if (createdTar) {
+    try { unlinkSync(createdTar); } catch {}
+    try { rmdirSync(dirname(createdTar)); } catch {}
+  }
 }

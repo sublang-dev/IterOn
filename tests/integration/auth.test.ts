@@ -35,6 +35,26 @@ function forceRmTempDir(dir: string): void {
   try { execFileSync('podman', ['unshare', 'rm', '-rf', dir], { stdio: 'ignore' }); } catch {}
 }
 
+/**
+ * Ensure TEST_IMAGE is available in the current Podman storage.
+ *
+ * On native Linux, redirecting XDG_DATA_HOME moves rootless Podman's
+ * graphRoot to an empty temp dir.  For PR CI runs the image was built
+ * from source and exported to a tar (ITERON_TEST_IMAGE_TAR).  Load it
+ * into the redirected store so `podman run` can find it.  For push CI
+ * runs the fully-qualified GHCR URL is immune to storage redirects.
+ */
+const TEST_IMAGE_TAR = process.env.ITERON_TEST_IMAGE_TAR || '';
+
+function ensureImageLoaded(): void {
+  if (!TEST_IMAGE_TAR) return;
+  try {
+    execFileSync('podman', ['image', 'exists', TEST_IMAGE], { stdio: 'ignore' });
+  } catch {
+    execFileSync('podman', ['load', '-i', TEST_IMAGE_TAR], { stdio: 'ignore', timeout: 120_000 });
+  }
+}
+
 describe('IR-005 headless auth (integration)', { timeout: 120_000, sequential: true }, () => {
   beforeAll(async () => {
     await cleanup();
@@ -71,7 +91,7 @@ binary = "opencode"
       'utf-8',
     );
 
-    try { execFileSync('podman', ['pull', TEST_IMAGE], { stdio: 'ignore' }); } catch {}
+    // Ensure volume exists (image is guaranteed by globalSetup)
     try { execFileSync('podman', ['volume', 'create', 'iteron-data'], { stdio: 'ignore' }); } catch {}
   }, 120_000);
 
@@ -91,6 +111,7 @@ binary = "opencode"
   it('propagates CLAUDE_CODE_OAUTH_TOKEN to container', async () => {
     // No OpenCode auth file — skip mount
     process.env.XDG_DATA_HOME = xdgDataDir;
+    ensureImageLoaded();
 
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
@@ -125,6 +146,7 @@ binary = "opencode"
     mkdirSync(opencodeDir, { recursive: true });
     writeFileSync(join(opencodeDir, 'auth.json'), '{"token":"oc-test"}', 'utf-8');
     process.env.XDG_DATA_HOME = xdgDataDir;
+    ensureImageLoaded();
 
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
@@ -143,6 +165,7 @@ binary = "opencode"
     // Point XDG_DATA_HOME to empty dir (no opencode/auth.json)
     const emptyXdg = mkdtempSync(join(tmpdir(), 'iteron-xdg-empty-'));
     process.env.XDG_DATA_HOME = emptyXdg;
+    ensureImageLoaded();
 
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
@@ -161,6 +184,7 @@ binary = "opencode"
     // Write an empty .env (no tokens, no API keys)
     writeFileSync(join(configDir, '.env'), '# empty — no auth\n', 'utf-8');
     process.env.XDG_DATA_HOME = xdgDataDir;
+    ensureImageLoaded();
 
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();
@@ -218,6 +242,7 @@ describe('DR-003 SSH key mount (integration)', { timeout: 120_000, sequential: t
     sshKeyDir = mkdtempSync(join(tmpdir(), 'iteron-ssh-keys-'));
     process.env.ITERON_CONFIG_DIR = sshConfigDir;
     process.env.XDG_DATA_HOME = sshXdgDir;
+    ensureImageLoaded();
 
     // Create a fake SSH key file
     await writeFile(join(sshKeyDir, 'id_ed25519'), 'fake-ssh-private-key-content\n', { mode: 0o600 });
@@ -225,7 +250,7 @@ describe('DR-003 SSH key mount (integration)', { timeout: 120_000, sequential: t
     // Write .env (required by startCommand)
     writeFileSync(join(sshConfigDir, '.env'), 'ANTHROPIC_API_KEY=sk-test-ssh\n', 'utf-8');
 
-    try { execFileSync('podman', ['pull', TEST_IMAGE], { stdio: 'ignore' }); } catch {}
+    // Ensure volume exists (image is guaranteed by globalSetup)
     try { execFileSync('podman', ['volume', 'create', 'iteron-data'], { stdio: 'ignore' }); } catch {}
   }, 120_000);
 
