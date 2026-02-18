@@ -8,19 +8,11 @@ import { tmpdir } from 'node:os';
 import { rm, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 
-const TEST_IMAGE = process.env.ITERON_TEST_IMAGE ?? 'docker.io/library/alpine:latest';
+// Guaranteed by globalSetup (builds iteron-sandbox:dev locally when unset).
+const TEST_IMAGE = process.env.ITERON_TEST_IMAGE!;
 const TEST_CONTAINER = 'iteron-test-sandbox';
 
 let configDir: string;
-
-function podmanAvailable(): boolean {
-  try {
-    execFileSync('podman', ['info'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function podmanExecSync(args: string[]): string {
   return execFileSync('podman', args, { encoding: 'utf-8' }).trim();
@@ -30,16 +22,12 @@ function containerExec(cmd: string[]): string {
   return podmanExecSync(['exec', TEST_CONTAINER, ...cmd]);
 }
 
-const HAS_PODMAN = podmanAvailable();
-
 async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['stop', '-t', '0', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
   try { execFileSync('podman', ['rm', '-f', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
 }
 
 beforeAll(async () => {
-  if (!HAS_PODMAN) return;
-
   await cleanup();
 
   configDir = mkdtempSync(join(tmpdir(), 'iteron-workspace-test-'));
@@ -75,18 +63,15 @@ binary = "opencode"
   const { startCommand } = await import('../../src/commands/start.js');
   await startCommand();
 
-  // Install tmux in alpine (needed for session tests)
-  try { containerExec(['apk', 'add', '--no-cache', 'tmux']); } catch {}
 });
 
 afterAll(async () => {
-  if (!HAS_PODMAN) return;
   await cleanup();
   delete process.env.ITERON_CONFIG_DIR;
   if (configDir) await rm(configDir, { recursive: true, force: true });
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('iteron open (integration)', { timeout: 120_000, sequential: true }, () => {
   // IR-004 test 1: `iteron open` → bash in ~, tmux shows bash@~
   it('opens shell in home directory', async () => {
     // Create a tmux session directly (can't use interactive open in test)
@@ -149,7 +134,7 @@ describe.skipIf(!HAS_PODMAN)('iteron open (integration)', { timeout: 120_000, se
   });
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron ls (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('iteron ls (integration)', { timeout: 120_000, sequential: true }, () => {
   afterEach(() => {
     try { containerExec(['tmux', 'kill-session', '-t', 'bash@~']); } catch {}
     try { containerExec(['tmux', 'kill-session', '-t', 'bash@ls-test']); } catch {}
@@ -180,7 +165,7 @@ describe.skipIf(!HAS_PODMAN)('iteron ls (integration)', { timeout: 120_000, sequ
 
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron rm (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('iteron rm (integration)', { timeout: 120_000, sequential: true }, () => {
   // IR-004 test 10: rm removes workspace directory
   it('removes workspace directory', async () => {
     // Setup
@@ -236,7 +221,7 @@ describe.skipIf(!HAS_PODMAN)('iteron rm (integration)', { timeout: 120_000, sequ
   });
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron open when container not running (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('iteron open when container not running (integration)', { timeout: 120_000, sequential: true }, () => {
   // IR-004 test 12: open when container not running
   it('errors when container is not running', async () => {
     // Stop the container

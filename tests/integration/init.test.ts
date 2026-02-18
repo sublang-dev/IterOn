@@ -6,24 +6,12 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { rm } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 
 // Isolated config dir for the entire suite
 let configDir: string;
 
-function podmanAvailable(): boolean {
-  try {
-    execFileSync('podman', ['info'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const HAS_PODMAN = podmanAvailable();
-
-// ITERON_TEST_IMAGE overrides the default image for CI against the real sandbox image.
-const TEST_IMAGE = process.env.ITERON_TEST_IMAGE ?? 'docker.io/library/alpine:latest';
+// Guaranteed by globalSetup (builds iteron-sandbox:dev locally when unset).
+const TEST_IMAGE = process.env.ITERON_TEST_IMAGE!;
 
 beforeAll(() => {
   configDir = mkdtempSync(join(tmpdir(), 'iteron-init-test-'));
@@ -35,7 +23,7 @@ afterAll(async () => {
   await rm(configDir, { recursive: true, force: true });
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron init (integration)', { timeout: 120_000 }, () => {
+describe('iteron init (integration)', { timeout: 120_000 }, () => {
   it('initializes with --yes and --image', async () => {
     // Dynamic import so ITERON_CONFIG_DIR is picked up
     const { initCommand } = await import('../../src/commands/init.js');

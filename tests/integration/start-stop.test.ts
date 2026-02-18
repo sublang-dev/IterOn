@@ -8,26 +8,15 @@ import { tmpdir } from 'node:os';
 import { rm, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 
-// ITERON_TEST_IMAGE overrides the default image for CI against the real sandbox image.
-const TEST_IMAGE = process.env.ITERON_TEST_IMAGE ?? 'docker.io/library/alpine:latest';
+// Guaranteed by globalSetup (builds iteron-sandbox:dev locally when unset).
+const TEST_IMAGE = process.env.ITERON_TEST_IMAGE!;
 const TEST_CONTAINER = 'iteron-test-sandbox';
 
 let configDir: string;
 
-function podmanAvailable(): boolean {
-  try {
-    execFileSync('podman', ['info'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function podmanExecSync(args: string[]): string {
   return execFileSync('podman', args, { encoding: 'utf-8' }).trim();
 }
-
-const HAS_PODMAN = podmanAvailable();
 
 async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['stop', '-t', '0', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
@@ -36,8 +25,6 @@ async function cleanup(): Promise<void> {
 }
 
 beforeAll(async () => {
-  if (!HAS_PODMAN) return;
-
   await cleanup();
 
   configDir = mkdtempSync(join(tmpdir(), 'iteron-start-test-'));
@@ -75,13 +62,12 @@ binary = "opencode"
 });
 
 afterAll(async () => {
-  if (!HAS_PODMAN) return;
   await cleanup();
   delete process.env.ITERON_CONFIG_DIR;
   if (configDir) await rm(configDir, { recursive: true, force: true });
 });
 
-describe.skipIf(!HAS_PODMAN)('iteron start/stop (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('iteron start/stop (integration)', { timeout: 120_000, sequential: true }, () => {
   it('starts a container', async () => {
     const { startCommand } = await import('../../src/commands/start.js');
     await startCommand();

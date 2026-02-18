@@ -8,29 +8,17 @@ import { tmpdir } from 'node:os';
 import { rm, mkdir, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 
-// ITERON_TEST_IMAGE overrides the default image for CI against the real sandbox image.
-const TEST_IMAGE = process.env.ITERON_TEST_IMAGE ?? 'docker.io/library/alpine:latest';
-const HAS_SANDBOX_IMAGE = !!process.env.ITERON_TEST_IMAGE;
+// Guaranteed by globalSetup (builds iteron-sandbox:dev locally when unset).
+const TEST_IMAGE = process.env.ITERON_TEST_IMAGE!;
 const TEST_CONTAINER = 'iteron-test-sandbox';
 
 let configDir: string;
 let xdgDataDir: string;
 const origXdg = process.env.XDG_DATA_HOME;
 
-function podmanAvailable(): boolean {
-  try {
-    execFileSync('podman', ['info'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function podmanExecSync(args: string[]): string {
   return execFileSync('podman', args, { encoding: 'utf-8' }).trim();
 }
-
-const HAS_PODMAN = podmanAvailable();
 
 async function cleanup(): Promise<void> {
   try { execFileSync('podman', ['stop', '-t', '0', TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
@@ -47,7 +35,7 @@ function forceRmTempDir(dir: string): void {
   try { execFileSync('podman', ['unshare', 'rm', '-rf', dir], { stdio: 'ignore' }); } catch {}
 }
 
-describe.skipIf(!HAS_PODMAN)('IR-005 headless auth (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('IR-005 headless auth (integration)', { timeout: 120_000, sequential: true }, () => {
   beforeAll(async () => {
     await cleanup();
 
@@ -111,14 +99,14 @@ binary = "opencode"
     expect(val).toBe('oauth-test-token');
   });
 
-  // IR-005 test 2: NO_BROWSER=true is set in container (sandbox image only)
-  it.skipIf(!HAS_SANDBOX_IMAGE)('has NO_BROWSER=true in container', () => {
+  // IR-005 test 2: NO_BROWSER=true is set in container
+  it('has NO_BROWSER=true in container', () => {
     const val = podmanExecSync(['exec', TEST_CONTAINER, 'printenv', 'NO_BROWSER']);
     expect(val).toBe('true');
   });
 
-  // IR-005 test 3: hasCompletedOnboarding is true (sandbox image only)
-  it.skipIf(!HAS_SANDBOX_IMAGE)('has hasCompletedOnboarding in claude.json', () => {
+  // IR-005 test 3: hasCompletedOnboarding is true
+  it('has hasCompletedOnboarding in claude.json', () => {
     const content = podmanExecSync(['exec', TEST_CONTAINER, 'cat', '/home/iteron/.claude.json']);
     const json = JSON.parse(content);
     expect(json.hasCompletedOnboarding).toBe(true);
@@ -169,7 +157,7 @@ binary = "opencode"
   });
 
   // IR-005 test 6 (spec verification #3): no auth → non-zero exit, auth error (not onboarding)
-  it.skipIf(!HAS_SANDBOX_IMAGE)('exits with auth error when no credentials provided', async () => {
+  it('exits with auth error when no credentials provided', async () => {
     // Write an empty .env (no tokens, no API keys)
     writeFileSync(join(configDir, '.env'), '# empty — no auth\n', 'utf-8');
     process.env.XDG_DATA_HOME = xdgDataDir;
@@ -212,7 +200,7 @@ let sshConfigDir: string;
 let sshXdgDir: string;
 let sshKeyDir: string;
 
-describe.skipIf(!HAS_PODMAN)('DR-003 SSH key mount (integration)', { timeout: 120_000, sequential: true }, () => {
+describe('DR-003 SSH key mount (integration)', { timeout: 120_000, sequential: true }, () => {
   async function sshCleanup(): Promise<void> {
     try { execFileSync('podman', ['stop', '-t', '0', SSH_TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
     try { execFileSync('podman', ['rm', '-f', SSH_TEST_CONTAINER], { stdio: 'ignore' }); } catch {}
@@ -453,8 +441,8 @@ keyfile = "/nonexistent/path/id_ed25519"
     await stopCommand();
   });
 
-  // Sandbox-image-only tests for pre-seeded SSH config
-  it.skipIf(!HAS_SANDBOX_IMAGE)('has pre-seeded ssh_known_hosts with GitHub and GitLab keys', async () => {
+  // Pre-seeded SSH config tests
+  it('has pre-seeded ssh_known_hosts with GitHub and GitLab keys', async () => {
     const configToml = `[container]
 name = "${SSH_TEST_CONTAINER}"
 image = "${TEST_IMAGE}"
@@ -473,13 +461,13 @@ binary = "claude"
     expect(knownHosts).toContain('gitlab.com');
   });
 
-  it.skipIf(!HAS_SANDBOX_IMAGE)('has StrictHostKeyChecking and managed Include in ssh_config.d', () => {
+  it('has StrictHostKeyChecking and managed Include in ssh_config.d', () => {
     const sshConf = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/etc/ssh/ssh_config.d/iteron.conf']);
     expect(sshConf).toContain('StrictHostKeyChecking yes');
     expect(sshConf).toContain('Include /home/iteron/.ssh/config.d/*.conf');
   });
 
-  it.skipIf(!HAS_SANDBOX_IMAGE)('stops container after sandbox-image tests', async () => {
+  it('stops container after sandbox-image tests', async () => {
     const { stopCommand } = await import('../../src/commands/stop.js');
     await stopCommand();
   });

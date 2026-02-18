@@ -8,9 +8,8 @@ import { tmpdir } from 'node:os';
 import { rm, mkdir } from 'node:fs/promises';
 import { spawnSync, execFileSync } from 'node:child_process';
 
-// Requires the real sandbox image (agents must be installed).
-const TEST_IMAGE = process.env.ITERON_TEST_IMAGE ?? '';
-const HAS_SANDBOX_IMAGE = !!TEST_IMAGE;
+// Guaranteed by globalSetup (builds iteron-sandbox:dev locally when unset).
+const TEST_IMAGE = process.env.ITERON_TEST_IMAGE!;
 const TEST_CONTAINER = 'iteron-test-sandbox';
 
 const SETUP_FIXTURE = join(import.meta.dirname, '..', 'setup-fixture.sh');
@@ -19,17 +18,6 @@ const SETUP_FIXTURE = join(import.meta.dirname, '..', 'setup-fixture.sh');
 const PERMISSION_PATTERNS = /\[Y\/n\]|\bAllow\b|\bapprove\b|permission to |Do you want to|trust this/i;
 
 let configDir: string;
-
-function podmanAvailable(): boolean {
-  try {
-    execFileSync('podman', ['info'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const HAS_PODMAN = podmanAvailable();
 
 /** At least one agent auth key must be set for autonomous tests to be meaningful. */
 const AUTH_KEYS = ['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'CODEX_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY'];
@@ -161,8 +149,8 @@ describe('autonomous log redaction helpers', () => {
   });
 });
 
-// Skip when no sandbox image, no Podman, or no auth keys — these tests need real agents.
-describe.skipIf(!HAS_PODMAN || !HAS_SANDBOX_IMAGE || !HAS_AUTH)(
+// Skip when no auth keys — these tests need real agents.
+describe.skipIf(!HAS_AUTH)(
   'IR-006 autonomous execution (integration)',
   { timeout: 300_000, sequential: true },
   () => {
