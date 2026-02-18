@@ -56,27 +56,39 @@ async function loadToml(): Promise<{ stringify: (obj: Record<string, unknown>) =
   return await import('smol-toml');
 }
 
-export function defaultConfig(image?: string): IteronConfig {
-  return {
-    container: {
-      name: DEFAULT_CONTAINER_NAME,
-      image: image ?? DEFAULT_IMAGE,
-      memory: DEFAULT_MEMORY,
-    },
-    auth: {
-      profile: 'local',
-      ssh: {
-        mode: 'off',
-        keyfiles: ['~/.ssh/id_ed25519'],
-      },
-    },
-  };
-}
-
 export async function ensureConfigDir(): Promise<void> {
   if (!existsSync(CONFIG_DIR)) {
     await mkdir(CONFIG_DIR, { recursive: true });
   }
+}
+
+function configTemplate(image?: string): string {
+  const img = image ?? DEFAULT_IMAGE;
+  return `# IterOn configuration — all available settings
+# Uncomment and edit values as needed.
+
+# ─── Container ────────────────────────────────────────────
+[container]
+name = "${DEFAULT_CONTAINER_NAME}"
+image = "${img}"
+memory = "${DEFAULT_MEMORY}"
+
+# ─── Authentication ───────────────────────────────────────
+[auth]
+profile = "local"              # "local" (only supported profile)
+
+# ─── SSH key injection ────────────────────────────────────
+# Set mode = "keyfile" to inject host SSH keys into the container.
+# Keys are mounted into an ephemeral tmpfs at /run/iteron/ssh/ and
+# listed as IdentityFile directives in ~/.ssh/config.d/iteron.conf.
+# SSH tries keys in the order listed.
+[auth.ssh]
+mode = "off"                   # "keyfile" | "off"
+# keyfiles = [
+#   "~/.ssh/id_ed25519",
+#   "~/.ssh/id_rsa",
+# ]
+`;
 }
 
 export async function writeConfig(image?: string): Promise<boolean> {
@@ -84,10 +96,7 @@ export async function writeConfig(image?: string): Promise<boolean> {
   if (existsSync(CONFIG_PATH)) {
     return false;
   }
-  const { stringify } = await loadToml();
-  const config = defaultConfig(image);
-  const toml = stringify(config as unknown as Record<string, unknown>);
-  await writeFile(CONFIG_PATH, toml, 'utf-8');
+  await writeFile(CONFIG_PATH, configTemplate(image), 'utf-8');
   return true;
 }
 

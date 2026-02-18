@@ -25,24 +25,15 @@ afterEach(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
 
-describe('defaultConfig', () => {
-  it('returns default image when no custom image', async () => {
-    const { defaultConfig, DEFAULT_IMAGE } = await import('../../src/utils/config.js');
-    const config = defaultConfig();
-    expect(config.container.image).toBe(DEFAULT_IMAGE);
-    expect(config.container.name).toBe('iteron-sandbox');
-    expect(config.container.memory).toBe('16g');
-  });
-
-  it('uses custom image when provided', async () => {
-    const { defaultConfig } = await import('../../src/utils/config.js');
-    const config = defaultConfig('my-custom:image');
-    expect(config.container.image).toBe('my-custom:image');
-  });
-
+describe('exported constants', () => {
   it('KNOWN_AGENTS contains all four agent names', async () => {
     const { KNOWN_AGENTS } = await import('../../src/utils/config.js');
     expect([...KNOWN_AGENTS]).toEqual(['claude', 'codex', 'gemini', 'opencode']);
+  });
+
+  it('DEFAULT_IMAGE points to GHCR sandbox', async () => {
+    const { DEFAULT_IMAGE } = await import('../../src/utils/config.js');
+    expect(DEFAULT_IMAGE).toBe('ghcr.io/sublang-dev/iteron-sandbox:latest');
   });
 });
 
@@ -139,15 +130,16 @@ describe('writeEnvTemplate', () => {
 });
 
 describe('auth config (DR-003)', () => {
-  it('defaultConfig includes auth section with SSH off and keyfiles array', async () => {
-    const { defaultConfig } = await import('../../src/utils/config.js');
-    const config = defaultConfig();
+  it('writeConfig template includes auth section with SSH off', async () => {
+    const { writeConfig, readConfig } = await import('../../src/utils/config.js');
+    await writeConfig();
+    const config = await readConfig();
     expect(config.auth).toBeDefined();
     expect(config.auth!.profile).toBe('local');
     expect(config.auth!.ssh).toBeDefined();
     expect(config.auth!.ssh!.mode).toBe('off');
-    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_ed25519']);
-    expect(config.auth!.ssh!.keyfile).toBeUndefined();
+    // keyfiles commented out in template (mode=off)
+    expect(config.auth!.ssh!.keyfiles).toBeUndefined();
   });
 
   it('readConfig parses [auth.ssh] with keyfiles array', async () => {
@@ -229,7 +221,8 @@ memory = "16g"
     const config = await readConfig();
     expect(config.auth!.profile).toBe('local');
     expect(config.auth!.ssh!.mode).toBe('off');
-    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_ed25519']);
+    // keyfiles is commented out in template (mode=off), so undefined after parse
+    expect(config.auth!.ssh!.keyfiles).toBeUndefined();
   });
 
   it('readConfig rejects unsupported auth profile', async () => {
