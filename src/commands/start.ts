@@ -4,7 +4,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { detectPlatform, needsMachine } from '../utils/platform.js';
 import {
   isMachineRunning,
@@ -15,7 +15,7 @@ import {
   podmanExecStdin,
   podmanErrorMessage,
 } from '../utils/podman.js';
-import { readConfig, resolveSshKeyPath, ENV_PATH } from '../utils/config.js';
+import { readConfig, resolveSshKeyPaths, uniqueSshKeyNames, ENV_PATH } from '../utils/config.js';
 
 /** Resolve OpenCode auth file honoring XDG_DATA_HOME. */
 export function opencodeAuthPath(): string {
@@ -68,17 +68,17 @@ export async function startCommand(): Promise<void> {
     }
 
     // DR-003 §2: opt-in SSH key mount (local profile)
-    // Key is injected post-start via exec (not bind-mounted) to avoid
+    // Keys are injected post-start via exec (not bind-mounted) to avoid
     // ownership issues in rootless Podman with --cap-drop ALL.
-    const sshKeyPath = resolveSshKeyPath(config);
-    let sshKeyBasename: string | undefined;
-    if (sshKeyPath) {
-      if (existsSync(sshKeyPath)) {
-        sshKeyBasename = basename(sshKeyPath);
-        args.push('--tmpfs', '/run/iteron/ssh:size=64k');
-      } else {
-        console.warn(`Warning: SSH keyfile "${sshKeyPath}" not found on host; skipping SSH mount.`);
-      }
+    const allSshKeyPaths = resolveSshKeyPaths(config);
+    const existingKeyPaths = allSshKeyPaths.filter(p => {
+      if (existsSync(p)) return true;
+      console.warn(`Warning: SSH keyfile "${p}" not found on host; skipping.`);
+      return false;
+    });
+
+    if (existingKeyPaths.length > 0) {
+      args.push('--tmpfs', `/run/iteron/ssh:size=${64 * existingKeyPaths.length}k`);
     }
 
     args.push(image, 'sleep', 'infinity');
@@ -88,23 +88,31 @@ export async function startCommand(): Promise<void> {
     await podmanExec(['exec', name, 'mkdir', '-p', '/home/iteron/.local/bin']);
 
     // DR-003 §2: reconcile managed SSH config in container
-    if (sshKeyBasename) {
-      // Inject key into tmpfs as iteron (exec runs as container user) so
-      // the file is owned by iteron with 0600 — no CAP_CHOWN needed.
-      // Key data is piped over stdin to avoid exposing it in argv.
-      const keyData = await readFile(sshKeyPath!, 'utf-8');
-      const keyDest = `/run/iteron/ssh/${sshKeyBasename}`;
-      await podmanExecStdin(
-        ['exec', '-i', name, 'sh', '-c', `cat > "$1" && chmod 0600 "$1"`, 'iteron-ssh', keyDest],
-        keyData,
-      );
-      // Write managed include file with IdentityFile directive
+    if (existingKeyPaths.length > 0) {
+      const keyNames = uniqueSshKeyNames(existingKeyPaths);
+      const identityLines: string[] = [];
+
+      for (const keyPath of existingKeyPaths) {
+        // Inject key into tmpfs as iteron (exec runs as container user) so
+        // the file is owned by iteron with 0600 — no CAP_CHOWN needed.
+        // Key data is piped over stdin to avoid exposing it in argv.
+        const keyData = await readFile(keyPath, 'utf-8');
+        const keyDest = `/run/iteron/ssh/${keyNames.get(keyPath)}`;
+        await podmanExecStdin(
+          ['exec', '-i', name, 'sh', '-c', `cat > "$1" && chmod 0600 "$1"`, 'iteron-ssh', keyDest],
+          keyData,
+        );
+        identityLines.push(`IdentityFile ${keyDest}`);
+      }
+
+      // Write managed include file with all IdentityFile directives
       await podmanExec(['exec', name, 'mkdir', '-p', '/home/iteron/.ssh/config.d']);
-      await podmanExec(['exec', name, 'sh', '-c',
-        'printf "IdentityFile %s\\n" "$1" > "$2"',
-        'iteron-ssh', keyDest,
-        '/home/iteron/.ssh/config.d/iteron.conf']);
-      await podmanExec(['exec', name, 'chmod', '0600', '/home/iteron/.ssh/config.d/iteron.conf']);
+      const confContent = identityLines.join('\n') + '\n';
+      await podmanExecStdin(
+        ['exec', '-i', name, 'sh', '-c',
+          'cat > /home/iteron/.ssh/config.d/iteron.conf && chmod 0600 /home/iteron/.ssh/config.d/iteron.conf'],
+        confContent,
+      );
     } else {
       // Remove stale managed config from a previous keyfile start
       try {

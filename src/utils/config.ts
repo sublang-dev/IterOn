@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 SubLang International <https://sublang.ai>
 
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { validateSessionToken } from './session.js';
@@ -33,7 +33,9 @@ const VALID_SSH_MODES: ReadonlySet<SshAuthMode> = new Set(['keyfile', 'off']);
 
 export interface SshAuthConfig {
   mode: SshAuthMode;
+  /** @deprecated Use keyfiles. */
   keyfile?: string;
+  keyfiles?: string[];
 }
 
 /** Profiles defined by DR-003 §1. Only 'local' is currently implemented. */
@@ -73,7 +75,7 @@ export function defaultConfig(image?: string): IteronConfig {
       profile: 'local',
       ssh: {
         mode: 'off',
-        keyfile: '~/.ssh/id_ed25519',
+        keyfiles: ['~/.ssh/id_ed25519'],
       },
     },
   };
@@ -189,23 +191,72 @@ export async function readConfig(): Promise<IteronConfig> {
         `Invalid [auth.ssh] mode "${mode}". Valid: ${[...VALID_SSH_MODES].join(', ')}.`,
       );
     }
+
+    // Migrate deprecated keyfile → keyfiles
+    if (config.auth.ssh.keyfile && !config.auth.ssh.keyfiles) {
+      config.auth.ssh.keyfiles = [config.auth.ssh.keyfile];
+      delete config.auth.ssh.keyfile;
+    }
+
+    // Validate keyfiles when mode is keyfile
+    if (mode === 'keyfile' && config.auth.ssh.keyfiles) {
+      if (!Array.isArray(config.auth.ssh.keyfiles) || config.auth.ssh.keyfiles.length === 0) {
+        throw new Error('[auth.ssh] keyfiles must be a non-empty array when mode is "keyfile".');
+      }
+      for (const kf of config.auth.ssh.keyfiles) {
+        if (typeof kf !== 'string' || kf.trim() === '') {
+          throw new Error('[auth.ssh] keyfiles entries must be non-empty strings.');
+        }
+      }
+    }
   }
 
   return config;
 }
 
 /**
- * Resolve the SSH key path from config. Returns the absolute host path
- * when mode is "keyfile", or null when SSH is off or unconfigured.
+ * Resolve SSH key paths from config. Returns absolute host paths
+ * when mode is "keyfile", or an empty array when SSH is off or unconfigured.
  */
-export function resolveSshKeyPath(config: IteronConfig): string | null {
+export function resolveSshKeyPaths(config: IteronConfig): string[] {
   const ssh = config.auth?.ssh;
-  if (!ssh || ssh.mode !== 'keyfile') return null;
-  const keyfile = ssh.keyfile ?? '~/.ssh/id_ed25519';
-  const expanded = keyfile.startsWith('~/')
-    ? join(homedir(), keyfile.slice(2))
-    : resolve(keyfile);
-  return expanded;
+  if (!ssh || ssh.mode !== 'keyfile') return [];
+  let raw = ssh.keyfiles;
+  if (!raw || raw.length === 0) {
+    // Fallback: legacy keyfile field or hard default
+    raw = [ssh.keyfile ?? '~/.ssh/id_ed25519'];
+  }
+  return raw.map(p => p.startsWith('~/') ? join(homedir(), p.slice(2)) : resolve(p));
+}
+
+/**
+ * Disambiguate duplicate basenames across SSH key paths.
+ * Returns a map from absolute host path → unique container filename.
+ * When basenames are unique, the basename is used as-is.
+ * When duplicates exist, the parent directory name is prefixed
+ * (e.g., `github/id_ed25519` → `github_id_ed25519`).
+ */
+export function uniqueSshKeyNames(paths: string[]): Map<string, string> {
+  const result = new Map<string, string>();
+  // Group paths by basename
+  const groups = new Map<string, string[]>();
+  for (const p of paths) {
+    const base = basename(p);
+    const arr = groups.get(base) ?? [];
+    arr.push(p);
+    groups.set(base, arr);
+  }
+  for (const [base, members] of groups) {
+    if (members.length === 1) {
+      result.set(members[0], base);
+    } else {
+      for (const p of members) {
+        const parent = basename(dirname(p));
+        result.set(p, `${parent}_${base}`);
+      }
+    }
+  }
+  return result;
 }
 
 const ENV_TEMPLATE = `# Headless agent authentication

@@ -48,11 +48,13 @@ processes in the container environment
 ### LCD-005
 
 Where `iteron start` is invoked with `[auth.ssh] mode = "keyfile"`,
-the command shall inject the host key into an ephemeral tmpfs inside the
-container and write an `IdentityFile` directive to a managed include
-file (`~/.ssh/config.d/iteron.conf`), preserving any user SSH config.
-When SSH is off or unconfigured, the managed file shall be removed to
-prevent stale `IdentityFile` directives from persisting on the volume
+the command shall inject each configured host key into an ephemeral
+tmpfs inside the container and write an `IdentityFile` directive per
+key to a managed include file (`~/.ssh/config.d/iteron.conf`),
+preserving any user SSH config. SSH tries keys in the order listed
+in `keyfiles`. When SSH is off or unconfigured, the managed file
+shall be removed to prevent stale `IdentityFile` directives from
+persisting on the volume
 ([DR-003 §2](../decisions/003-runtime-profiled-auth.md#2-local-profile)).
 
 ### LCD-006

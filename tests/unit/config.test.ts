@@ -212,17 +212,43 @@ describe('writeEnvTemplate', () => {
 });
 
 describe('auth config (DR-003)', () => {
-  it('defaultConfig includes auth section with SSH off', async () => {
+  it('defaultConfig includes auth section with SSH off and keyfiles array', async () => {
     const { defaultConfig } = await import('../../src/utils/config.js');
     const config = defaultConfig();
     expect(config.auth).toBeDefined();
     expect(config.auth!.profile).toBe('local');
     expect(config.auth!.ssh).toBeDefined();
     expect(config.auth!.ssh!.mode).toBe('off');
-    expect(config.auth!.ssh!.keyfile).toBe('~/.ssh/id_ed25519');
+    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_ed25519']);
+    expect(config.auth!.ssh!.keyfile).toBeUndefined();
   });
 
-  it('readConfig parses [auth] and [auth.ssh] sections', async () => {
+  it('readConfig parses [auth.ssh] with keyfiles array', async () => {
+    const { readConfig } = await import('../../src/utils/config.js');
+    const toml = `[container]
+name = "iteron-sandbox"
+image = "ghcr.io/sublang-dev/iteron-sandbox:latest"
+memory = "16g"
+
+[agents.claude]
+binary = "claude"
+
+[auth]
+profile = "local"
+
+[auth.ssh]
+mode = "keyfile"
+keyfiles = ["~/.ssh/id_rsa", "~/.ssh/id_ed25519"]
+`;
+    writeFileSync(join(tmpDir, 'config.toml'), toml, 'utf-8');
+    const config = await readConfig();
+    expect(config.auth).toBeDefined();
+    expect(config.auth!.profile).toBe('local');
+    expect(config.auth!.ssh!.mode).toBe('keyfile');
+    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_rsa', '~/.ssh/id_ed25519']);
+  });
+
+  it('readConfig migrates legacy keyfile to keyfiles array', async () => {
     const { readConfig } = await import('../../src/utils/config.js');
     const toml = `[container]
 name = "iteron-sandbox"
@@ -241,10 +267,29 @@ keyfile = "~/.ssh/id_rsa"
 `;
     writeFileSync(join(tmpDir, 'config.toml'), toml, 'utf-8');
     const config = await readConfig();
-    expect(config.auth).toBeDefined();
-    expect(config.auth!.profile).toBe('local');
-    expect(config.auth!.ssh!.mode).toBe('keyfile');
-    expect(config.auth!.ssh!.keyfile).toBe('~/.ssh/id_rsa');
+    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_rsa']);
+    expect(config.auth!.ssh!.keyfile).toBeUndefined();
+  });
+
+  it('readConfig rejects empty keyfiles array when mode=keyfile', async () => {
+    const { readConfig } = await import('../../src/utils/config.js');
+    const toml = `[container]
+name = "iteron-sandbox"
+image = "ghcr.io/sublang-dev/iteron-sandbox:latest"
+memory = "16g"
+
+[agents.claude]
+binary = "claude"
+
+[auth]
+profile = "local"
+
+[auth.ssh]
+mode = "keyfile"
+keyfiles = []
+`;
+    writeFileSync(join(tmpDir, 'config.toml'), toml, 'utf-8');
+    await expect(readConfig()).rejects.toThrow(/keyfiles must be a non-empty array/);
   });
 
   it('readConfig handles missing [auth] for backward compat', async () => {
@@ -269,7 +314,7 @@ binary = "claude"
     const config = await readConfig();
     expect(config.auth!.profile).toBe('local');
     expect(config.auth!.ssh!.mode).toBe('off');
-    expect(config.auth!.ssh!.keyfile).toBe('~/.ssh/id_ed25519');
+    expect(config.auth!.ssh!.keyfiles).toEqual(['~/.ssh/id_ed25519']);
   });
 
   it('readConfig rejects unsupported auth profile', async () => {
@@ -330,50 +375,91 @@ keyfile = "~/.ssh/id_rsa"
   });
 });
 
-describe('resolveSshKeyPath', () => {
-  it('returns null when auth is undefined', async () => {
-    const { resolveSshKeyPath } = await import('../../src/utils/config.js');
-    const result = resolveSshKeyPath({ container: {} as never, agents: {} });
-    expect(result).toBeNull();
+describe('resolveSshKeyPaths', () => {
+  it('returns empty array when auth is undefined', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({ container: {} as never, agents: {} });
+    expect(result).toEqual([]);
   });
 
-  it('returns null when mode is off', async () => {
-    const { resolveSshKeyPath } = await import('../../src/utils/config.js');
-    const result = resolveSshKeyPath({
+  it('returns empty array when mode is off', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({
       container: {} as never,
       agents: {},
       auth: { profile: 'local', ssh: { mode: 'off' } },
     });
-    expect(result).toBeNull();
+    expect(result).toEqual([]);
   });
 
-  it('expands ~ in keyfile path', async () => {
-    const { resolveSshKeyPath } = await import('../../src/utils/config.js');
-    const result = resolveSshKeyPath({
+  it('expands ~ in keyfiles paths', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({
       container: {} as never,
       agents: {},
-      auth: { profile: 'local', ssh: { mode: 'keyfile', keyfile: '~/.ssh/id_ed25519' } },
+      auth: { profile: 'local', ssh: { mode: 'keyfile', keyfiles: ['~/.ssh/id_ed25519', '~/.ssh/id_rsa'] } },
     });
-    expect(result).toBe(join(homedir(), '.ssh', 'id_ed25519'));
+    expect(result).toEqual([
+      join(homedir(), '.ssh', 'id_ed25519'),
+      join(homedir(), '.ssh', 'id_rsa'),
+    ]);
   });
 
-  it('uses default keyfile when keyfile is omitted', async () => {
-    const { resolveSshKeyPath } = await import('../../src/utils/config.js');
-    const result = resolveSshKeyPath({
+  it('falls back to legacy keyfile when keyfiles is absent', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({
+      container: {} as never,
+      agents: {},
+      auth: { profile: 'local', ssh: { mode: 'keyfile', keyfile: '~/.ssh/id_rsa' } },
+    });
+    expect(result).toEqual([join(homedir(), '.ssh', 'id_rsa')]);
+  });
+
+  it('uses default when both keyfiles and keyfile are omitted', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({
       container: {} as never,
       agents: {},
       auth: { profile: 'local', ssh: { mode: 'keyfile' } },
     });
-    expect(result).toBe(join(homedir(), '.ssh', 'id_ed25519'));
+    expect(result).toEqual([join(homedir(), '.ssh', 'id_ed25519')]);
   });
 
-  it('resolves absolute path as-is', async () => {
-    const { resolveSshKeyPath } = await import('../../src/utils/config.js');
-    const result = resolveSshKeyPath({
+  it('resolves absolute paths as-is', async () => {
+    const { resolveSshKeyPaths } = await import('../../src/utils/config.js');
+    const result = resolveSshKeyPaths({
       container: {} as never,
       agents: {},
-      auth: { profile: 'local', ssh: { mode: 'keyfile', keyfile: '/tmp/my-key' } },
+      auth: { profile: 'local', ssh: { mode: 'keyfile', keyfiles: ['/tmp/my-key', '/opt/keys/deploy'] } },
     });
-    expect(result).toBe('/tmp/my-key');
+    expect(result).toEqual(['/tmp/my-key', '/opt/keys/deploy']);
+  });
+});
+
+describe('uniqueSshKeyNames', () => {
+  it('uses basenames when all are unique', async () => {
+    const { uniqueSshKeyNames } = await import('../../src/utils/config.js');
+    const result = uniqueSshKeyNames(['/home/user/.ssh/id_ed25519', '/home/user/.ssh/id_rsa']);
+    expect(result.get('/home/user/.ssh/id_ed25519')).toBe('id_ed25519');
+    expect(result.get('/home/user/.ssh/id_rsa')).toBe('id_rsa');
+  });
+
+  it('prefixes parent dir name when basenames collide', async () => {
+    const { uniqueSshKeyNames } = await import('../../src/utils/config.js');
+    const result = uniqueSshKeyNames(['/home/user/github/id_ed25519', '/home/user/gitlab/id_ed25519']);
+    expect(result.get('/home/user/github/id_ed25519')).toBe('github_id_ed25519');
+    expect(result.get('/home/user/gitlab/id_ed25519')).toBe('gitlab_id_ed25519');
+  });
+
+  it('handles mix of unique and duplicate basenames', async () => {
+    const { uniqueSshKeyNames } = await import('../../src/utils/config.js');
+    const result = uniqueSshKeyNames([
+      '/home/user/github/id_ed25519',
+      '/home/user/gitlab/id_ed25519',
+      '/home/user/.ssh/id_rsa',
+    ]);
+    expect(result.get('/home/user/github/id_ed25519')).toBe('github_id_ed25519');
+    expect(result.get('/home/user/gitlab/id_ed25519')).toBe('gitlab_id_ed25519');
+    expect(result.get('/home/user/.ssh/id_rsa')).toBe('id_rsa');
   });
 });

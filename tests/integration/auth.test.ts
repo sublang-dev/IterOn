@@ -282,7 +282,7 @@ profile = "local"
 
 [auth.ssh]
 mode = "keyfile"
-keyfile = "${keyPath}"
+keyfiles = ["${keyPath}"]
 `;
     writeFileSync(join(sshConfigDir, 'config.toml'), configToml, 'utf-8');
 
@@ -334,7 +334,7 @@ profile = "local"
 
 [auth.ssh]
 mode = "keyfile"
-keyfile = "${keyPath}"
+keyfiles = ["${keyPath}"]
 `;
     writeFileSync(join(sshConfigDir, 'config.toml'), keyfileToml, 'utf-8');
 
@@ -446,7 +446,7 @@ profile = "local"
 
 [auth.ssh]
 mode = "keyfile"
-keyfile = "/nonexistent/path/id_ed25519"
+keyfiles = ["/nonexistent/path/id_ed25519"]
 `;
     writeFileSync(join(sshConfigDir, 'config.toml'), configToml, 'utf-8');
 
@@ -461,6 +461,141 @@ keyfile = "/nonexistent/path/id_ed25519"
 
     const tmpfs = podmanExecSync(['inspect', SSH_TEST_CONTAINER, '--format', '{{json .HostConfig.Tmpfs}}']);
     expect(tmpfs).not.toContain('/run/iteron/ssh');
+
+    const { stopCommand } = await import('../../src/commands/stop.js');
+    await stopCommand();
+  });
+
+  // Multi-key injection test
+  it('mounts multiple SSH keys and writes all IdentityFile directives', async () => {
+    const keyPath1 = join(sshKeyDir, 'id_ed25519');
+    // Create a second key
+    await writeFile(join(sshKeyDir, 'id_rsa'), 'fake-rsa-key-content\n', { mode: 0o600 });
+    const keyPath2 = join(sshKeyDir, 'id_rsa');
+
+    const configToml = `[container]
+name = "${SSH_TEST_CONTAINER}"
+image = "${TEST_IMAGE}"
+memory = "512m"
+
+[agents.claude]
+binary = "claude"
+
+[auth]
+profile = "local"
+
+[auth.ssh]
+mode = "keyfile"
+keyfiles = ["${keyPath1}", "${keyPath2}"]
+`;
+    writeFileSync(join(sshConfigDir, 'config.toml'), configToml, 'utf-8');
+
+    const { startCommand } = await import('../../src/commands/start.js');
+    await startCommand();
+
+    // Verify both keys injected
+    const key1 = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/run/iteron/ssh/id_ed25519']);
+    expect(key1).toContain('fake-ssh-private-key-content');
+    const key2 = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/run/iteron/ssh/id_rsa']);
+    expect(key2).toContain('fake-rsa-key-content');
+
+    // Verify iteron.conf contains both IdentityFile directives in order
+    const sshConfig = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/home/iteron/.ssh/config.d/iteron.conf']);
+    expect(sshConfig).toContain('IdentityFile /run/iteron/ssh/id_ed25519');
+    expect(sshConfig).toContain('IdentityFile /run/iteron/ssh/id_rsa');
+    // Verify order: id_ed25519 before id_rsa
+    const idx1 = sshConfig.indexOf('IdentityFile /run/iteron/ssh/id_ed25519');
+    const idx2 = sshConfig.indexOf('IdentityFile /run/iteron/ssh/id_rsa');
+    expect(idx1).toBeLessThan(idx2);
+
+    const { stopCommand } = await import('../../src/commands/stop.js');
+    await stopCommand();
+  });
+
+  // Duplicate-basename disambiguation test
+  it('disambiguates duplicate basenames with parent dir prefix', async () => {
+    // Create two keys with the same basename in different directories
+    const githubDir = join(sshKeyDir, 'github');
+    const gitlabDir = join(sshKeyDir, 'gitlab');
+    mkdirSync(githubDir, { recursive: true });
+    mkdirSync(gitlabDir, { recursive: true });
+    await writeFile(join(githubDir, 'id_ed25519'), 'github-key-content\n', { mode: 0o600 });
+    await writeFile(join(gitlabDir, 'id_ed25519'), 'gitlab-key-content\n', { mode: 0o600 });
+
+    const configToml = `[container]
+name = "${SSH_TEST_CONTAINER}"
+image = "${TEST_IMAGE}"
+memory = "512m"
+
+[agents.claude]
+binary = "claude"
+
+[auth]
+profile = "local"
+
+[auth.ssh]
+mode = "keyfile"
+keyfiles = ["${join(githubDir, 'id_ed25519')}", "${join(gitlabDir, 'id_ed25519')}"]
+`;
+    writeFileSync(join(sshConfigDir, 'config.toml'), configToml, 'utf-8');
+
+    const { startCommand } = await import('../../src/commands/start.js');
+    await startCommand();
+
+    // Verify disambiguated filenames in container
+    const key1 = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/run/iteron/ssh/github_id_ed25519']);
+    expect(key1).toContain('github-key-content');
+    const key2 = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/run/iteron/ssh/gitlab_id_ed25519']);
+    expect(key2).toContain('gitlab-key-content');
+
+    // Verify iteron.conf references disambiguated names
+    const sshConfig = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/home/iteron/.ssh/config.d/iteron.conf']);
+    expect(sshConfig).toContain('IdentityFile /run/iteron/ssh/github_id_ed25519');
+    expect(sshConfig).toContain('IdentityFile /run/iteron/ssh/gitlab_id_ed25519');
+
+    const { stopCommand } = await import('../../src/commands/stop.js');
+    await stopCommand();
+  });
+
+  // Partial availability test: one key exists, one doesn't
+  it('mounts existing keys and warns about missing ones', async () => {
+    const keyPath = join(sshKeyDir, 'id_ed25519');
+
+    const configToml = `[container]
+name = "${SSH_TEST_CONTAINER}"
+image = "${TEST_IMAGE}"
+memory = "512m"
+
+[agents.claude]
+binary = "claude"
+
+[auth]
+profile = "local"
+
+[auth.ssh]
+mode = "keyfile"
+keyfiles = ["${keyPath}", "/nonexistent/path/id_missing"]
+`;
+    writeFileSync(join(sshConfigDir, 'config.toml'), configToml, 'utf-8');
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { startCommand } = await import('../../src/commands/start.js');
+    await startCommand();
+
+    // Warning issued for missing key
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('/nonexistent/path/id_missing'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('not found on host'));
+    warnSpy.mockRestore();
+
+    // Existing key still mounted
+    const keyContent = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/run/iteron/ssh/id_ed25519']);
+    expect(keyContent).toContain('fake-ssh-private-key-content');
+
+    // Only one IdentityFile directive (for existing key)
+    const sshConfig = podmanExecSync(['exec', SSH_TEST_CONTAINER, 'cat', '/home/iteron/.ssh/config.d/iteron.conf']);
+    expect(sshConfig).toContain('IdentityFile /run/iteron/ssh/id_ed25519');
+    expect(sshConfig).not.toContain('id_missing');
 
     const { stopCommand } = await import('../../src/commands/stop.js');
     await stopCommand();

@@ -48,20 +48,24 @@ The CLI UX is identical regardless of profile. Commands like
 container environment variables at start
 ([DR-001 §3](001-sandbox-architecture.md#3-authentication)).
 
-**Git SSH:** Opt-in single-key mount.
+**Git SSH:** Opt-in key mount supporting one or more keys.
 
 ```toml
 [auth.ssh]
-mode = "off"                   # "keyfile" | "off"
-keyfile = "~/.ssh/id_ed25519"  # host path; mounted read-only
+mode = "off"                          # "keyfile" | "off"
+keyfiles = ["~/.ssh/id_ed25519"]      # host paths; injected into container
 ```
 
-When `mode = "keyfile"`, `iteron start` injects the specified
-private key into a staging tmpfs at `/run/iteron/ssh/<basename>`.
-An `IdentityFile` directive pointing to the mounted path is written
-to a managed include file (`~/.ssh/config.d/iteron.conf`), preserving
-any user SSH config. When mode is `"off"` or absent, the managed file
-is removed to prevent stale directives from persisting on the volume.
+When `mode = "keyfile"`, `iteron start` injects each specified
+private key into a staging tmpfs at `/run/iteron/ssh/`. An
+`IdentityFile` directive for each key is written to a managed include
+file (`~/.ssh/config.d/iteron.conf`), preserving any user SSH config.
+SSH tries keys in listed order. When mode is `"off"` or absent, the
+managed file is removed to prevent stale directives from persisting
+on the volume.
+
+> **Backward compatibility:** The deprecated `keyfile` (singular) field
+> is migrated to `keyfiles = [keyfile]` at config load time.
 
 The image pre-seeds `/etc/ssh/ssh_known_hosts` with host keys for
 GitHub \[1] and GitLab.com \[6]. Users can append additional host keys by
