@@ -20,21 +20,23 @@ The sandbox enables OSC 52 clipboard passthrough (`set-clipboard on`, `allow-pas
 
 ### OSC 52 terminals (iTerm2, WezTerm, Alacritty, kitty, etc.)
 
-Mouse drag copies automatically:
+When mouse mode is on (`Ctrl-B m` to toggle), drag copies automatically:
 
 1. **Drag** to select text.
 2. **Release** — copied to host clipboard.
 3. **Paste** with `Cmd-V` (macOS) or `Ctrl-Shift-V` (Linux/Windows).
 
+With mouse mode off (the default), use keyboard copy mode instead (`Ctrl-B [`).
+
 Keyboard copy mode also works: `Ctrl-B [`, select with arrow keys, `Enter` to copy.
 
 ### Terminal.app (no OSC 52 support)
 
-Terminal.app does not support OSC 52. Use the mouse-mode toggle to do native selection:
+Terminal.app does not support OSC 52. If mouse mode is on, toggle it off first for native selection:
 
-1. `Ctrl-B m` — turn mouse mode **off** (global; affects all IterOn tmux sessions in this container).
+1. If mouse is on, press `Ctrl-B m` to disable it (global; affects all IterOn tmux sessions in this container).
 2. **Drag** to select text, `Cmd-C` to copy.
-3. `Ctrl-B m` — turn mouse mode **on** again.
+3. `Ctrl-B m` to re-enable mouse mode if desired.
 4. **Paste** with `Cmd-V`.
 
 ### Disabling clipboard passthrough
@@ -69,7 +71,7 @@ All tmux commands start with the prefix `Ctrl-B`:
 | Search backward | `Ctrl-R` (in scroll mode) |
 | Exit scroll mode | `q` or `Escape` |
 
-Mouse scrolling is enabled by default — scroll with your trackpad or mouse wheel.
+When mouse mode is on (`Ctrl-B m`), you can also scroll with your trackpad or mouse wheel.
 
 ## Session Management
 
@@ -88,12 +90,19 @@ The sandbox uses a two-tier tmux configuration:
 ```
 set -g history-limit 10000
 set -g default-terminal "tmux-256color"
-set -g mouse on
+set -g mouse off
 set -g set-clipboard on
 set -g allow-passthrough on
 bind-key -T copy-mode MouseDragEnd1Pane send-keys -X copy-selection-and-cancel
 bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-and-cancel
-bind-key m if-shell -F '#{mouse}' 'set -g mouse off; display-message "Mouse off"' 'set -g mouse on; display-message "Mouse on"'
+
+# Restore saved preferences across restarts (~/ is on iteron-data volume).
+if-shell 'grep -q "^mouse=on$" ~/.iteron-prefs 2>/dev/null' 'set -g mouse on'
+
+# Toggle mouse with prefix + m; persist the choice to ~/.iteron-prefs.
+bind-key m if-shell -F '#{?mouse,1,0}' \
+  'set -g mouse off; display-message "Mouse off"; run-shell "grep -v ^mouse= ~/.iteron-prefs 2>/dev/null > ~/.iteron-prefs.tmp; echo mouse=off >> ~/.iteron-prefs.tmp; mv ~/.iteron-prefs.tmp ~/.iteron-prefs"' \
+  'set -g mouse on; display-message "Mouse on"; run-shell "grep -v ^mouse= ~/.iteron-prefs 2>/dev/null > ~/.iteron-prefs.tmp; echo mouse=on >> ~/.iteron-prefs.tmp; mv ~/.iteron-prefs.tmp ~/.iteron-prefs"'
 set -g status-left "[#{session_name}] "
 set -g status-right "%H:%M %Y-%m-%d"
 ```
@@ -105,10 +114,10 @@ tmux loads the system config first, then the user config. Any setting in `~/.tmu
 Key defaults:
 - **10,000 lines** of scrollback history
 - **256-color** terminal support
-- **Mouse mode** enabled (click panes, scroll, resize)
+- **Mouse mode** off by default (native terminal selection works normally)
+- **Mouse toggle** — `Ctrl-B m` to toggle mouse mode on/off; the choice is saved to `~/.iteron-prefs` and restored on next container start
 - **Clipboard passthrough** enabled (OSC 52 for compatible terminals)
-- **Mouse drag copy** — drag to select, release to copy
-- **Mouse toggle** — `Ctrl-B m` to toggle mouse mode (for Terminal.app copy)
+- **Mouse drag copy** — when mouse is on, drag to select, release to copy
 - **Status bar** shows session name and timestamp
 
 ## Custom Configuration
@@ -127,4 +136,4 @@ Changes persist across container restarts (stored on the `iteron-data` volume). 
 tmux source-file ~/.tmux.conf
 ```
 
-System defaults in `/etc/tmux.conf` are restored automatically on image updates.
+System defaults in `/etc/tmux.conf` are restored automatically on image updates. User preferences (`~/.iteron-prefs`) are also on the volume, so toggling mouse once with `Ctrl-B m` persists across restarts and image updates.

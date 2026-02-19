@@ -74,11 +74,11 @@ These defaults live in the image so every container launch is autonomous out of 
 
 ### 6. tmux default configuration
 
-- Place `/home/iteron/.tmux.conf` with:
+- Place `/etc/tmux.conf` with:
   - 10,000-line scrollback history
   - Status bar showing session name and time
-  - Mouse mode enabled
-  - `set -g default-terminal "screen-256color"`
+  - Mouse mode off by default (toggleable with `Ctrl-B m`, persisted across restarts)
+  - `set -g default-terminal "tmux-256color"`
 
 ## Verification
 

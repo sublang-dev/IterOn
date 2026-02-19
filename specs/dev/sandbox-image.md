@@ -171,4 +171,14 @@ system configuration.
 Where the image is built, tmux system configuration shall bind
 `MouseDragEnd1Pane` to `copy-selection-and-cancel` in both
 `copy-mode` and `copy-mode-vi`, and bind a prefix key to toggle
-`mouse` mode on/off.
+`mouse` mode on/off. The toggle shall persist the choice to
+`~/.iteron-prefs`.
+
+### SBD-023
+
+Where user preferences are persisted inside the container,
+they shall be stored in `~/.iteron-prefs` using `key=value`
+format (one entry per line). This file lives on the
+`iteron-data` volume and survives container restarts and image
+updates. Image-level defaults (e.g., `/etc/tmux.conf`) read
+this file on startup to restore saved preferences.

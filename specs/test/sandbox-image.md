@@ -315,3 +315,17 @@ Where `iteron-sandbox:<tag>` is built, `/etc/tmux.conf` shall bind
 `copy-mode` and `copy-mode-vi`, and bind a prefix key to toggle
 mouse mode
 ([SBD-022](../dev/sandbox-image.md#sbd-022)).
+
+### SBT-043
+
+Where `iteron-sandbox:<tag>` is built, `/etc/tmux.conf` shall
+default mouse mode to off and restore the `mouse` preference
+from `~/.iteron-prefs` on startup when the file exists
+([SBD-023](../dev/sandbox-image.md#sbd-023)).
+
+### SBT-044
+
+Where `iteron-sandbox:<tag>` is built, when the mouse-toggle
+prefix-key binding fires, `/etc/tmux.conf` shall write the
+updated `mouse` value to `~/.iteron-prefs` in `key=value` format
+([SBD-023](../dev/sandbox-image.md#sbd-023)).

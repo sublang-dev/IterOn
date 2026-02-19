@@ -36,7 +36,8 @@ shall fail
 
 Where a user attaches to tmux in the container, tmux shall have
 interactive defaults: 10,000-line history, terminal type
-`screen-256color`, mouse mode enabled, and a status bar showing
+`tmux-256color`, mouse mode off by default (toggleable with
+`Ctrl-B m`, persisted across restarts), and a status bar showing
 session name and time
 ([DR-001 §2](../decisions/001-sandbox-architecture.md#2-tmux-mapping)).
 
