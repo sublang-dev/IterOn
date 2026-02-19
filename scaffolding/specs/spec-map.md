@@ -35,7 +35,7 @@ Authoring rules: [dev/style.md](dev/style.md).
 | File | Summary |
 | --- | --- |
 | [git.md](dev/git.md) | Commit message format and AI co-authorship trailers |
-| [style.md](dev/style.md) | Spec naming, ID format, GEARS syntax, cross-refs, SPDX headers |
+| [style.md](dev/style.md) | Spec naming, ID format, GEARS syntax, cross-refs, record format, and SPDX headers |
 
 ### `user/`
 

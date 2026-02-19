@@ -32,7 +32,7 @@ Decision records shall follow [ADR](https://github.com/npryce/adr-tools) format 
 
 ### STYLE-006
 
-Decision records shall cite authoritative references (e.g., official docs) with numbered markers (e.g., `[1]`) linked to specific URLs in a `## References` section that has no uncited entries.
+When references are appropriate, decision records shall cite authoritative sources (e.g., official docs) with numbered markers (e.g., `[1]`) linked to specific URLs in a `## References` section that has no uncited entries.
 
 ### STYLE-007
 

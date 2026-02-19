@@ -41,6 +41,7 @@ Authoring rules: [dev/style.md](dev/style.md).
 | IR-005 | [005-headless-auth.md](iterations/005-headless-auth.md) | Headless authentication for all agents |
 | IR-006 | [006-autonomous-execution.md](iterations/006-autonomous-execution.md) | Autonomous agent execution validation |
 | IR-007 | [007-reliability-security.md](iterations/007-reliability-security.md) | Reliability, security, CVEs, and documentation |
+| IR-008 | [008-user-tool-provisioning.md](iterations/008-user-tool-provisioning.md) | User-space tool provisioning via mise |
 
 ## Spec Files
 
@@ -53,7 +54,7 @@ Authoring rules: [dev/style.md](dev/style.md).
 | [lifecycle.md](dev/lifecycle.md) | Rootless enforcement, container hardening, env template, env exposure |
 | [release.md](dev/release.md) | Semantic versioning, changelog, npm publish with provenance |
 | [sandbox-image.md](dev/sandbox-image.md) | Dockerfile, agent installs, runtime defaults, security hardening, image size budget, headless auth config, vulnerability scanning |
-| [style.md](dev/style.md) | Spec naming, ID format, GEARS syntax, cross-refs, SPDX headers |
+| [style.md](dev/style.md) | Spec naming, ID format, GEARS syntax, cross-refs, record format, and SPDX headers |
 | [workspace.md](dev/workspace.md) | Session identity format, input constraints, open/ls/rm behavior |
 
 ### `user/`
