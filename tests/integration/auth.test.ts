@@ -39,10 +39,9 @@ function forceRmTempDir(dir: string): void {
  * Ensure TEST_IMAGE is available in the current Podman storage.
  *
  * On native Linux, redirecting XDG_DATA_HOME moves rootless Podman's
- * graphRoot to an empty temp dir.  For PR CI runs the image was built
- * from source and exported to a tar (ITERON_TEST_IMAGE_TAR).  Load it
- * into the redirected store so `podman run` can find it.  For push CI
- * runs the fully-qualified GHCR URL is immune to storage redirects.
+ * graphRoot to an empty temp dir.  CI builds a commit-scoped image and
+ * exports it to a tar (ITERON_TEST_IMAGE_TAR).  Load it into the
+ * redirected store so `podman run` can find it.
  */
 const TEST_IMAGE_TAR = process.env.ITERON_TEST_IMAGE_TAR || '';
 

@@ -8,7 +8,7 @@
  *
  * Env flags:
  *   ITERON_TEST_IMAGE      — override the image (CI sets this); skips build entirely
- *   ITERON_TEST_IMAGE_TAR  — pre-saved image tar (CI PR sets this); skips export
+ *   ITERON_TEST_IMAGE_TAR  — pre-saved image tar (CI sets this); skips export
  *   ITERON_FORCE_BUILD     — rebuild even if iteron-sandbox:dev already exists locally
  */
 
