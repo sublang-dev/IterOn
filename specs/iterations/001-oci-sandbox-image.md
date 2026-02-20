@@ -31,21 +31,21 @@ Build a multi-arch OCI container image that packages all four agent runtimes (Cl
 
 ### 2. Agent runtime installation and name mapping
 
-Install each agent and verify its binary is on `PATH`:
+Install each agent via mise ([DR-004](../decisions/004-user-tool-provisioning.md)) and verify its binary is on `PATH`:
 
-- Claude Code: `npm install -g @anthropic-ai/claude-code`
-- Codex CLI: standalone musl binary from GitHub releases (avoids 400 MB npm multi-platform bundle)
-- Gemini CLI: `npm install -g @google/gemini-cli`
-- OpenCode: `npm install -g opencode-ai`
+- Claude Code: `npm:@anthropic-ai/claude-code` (mise npm backend)
+- Codex CLI: `github:openai/codex` (mise github backend)
+- Gemini CLI: `npm:@google/gemini-cli` (mise npm backend)
+- OpenCode: `npm:opencode-ai` (mise npm backend)
 
 **Agent name mapping** — [DR-002](../decisions/002-iteron-cli-commands.md#workspace-model) defines reserved agent names for `iteron open` and tmux session naming. These map to binary commands as follows:
 
 | Agent name (config / CLI) | Binary command | Source |
 | --- | --- | --- |
-| `claude` | `claude` | npm: `@anthropic-ai/claude-code` |
-| `codex` | `codex` | GitHub releases (standalone musl binary) |
-| `gemini` | `gemini` | npm: `@google/gemini-cli` |
-| `opencode` | `opencode` | npm: `opencode-ai` |
+| `claude` | `claude` | mise npm: `@anthropic-ai/claude-code` |
+| `codex` | `codex` | mise github: `openai/codex` |
+| `gemini` | `gemini` | mise npm: `@google/gemini-cli` |
+| `opencode` | `opencode` | mise npm: `opencode-ai` |
 
 `iteron open myproject claude` resolves to binary `claude` and creates tmux session `claude@myproject`. Verify exact binary names during implementation — upstream projects may change them.
 

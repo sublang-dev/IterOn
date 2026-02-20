@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 SubLang International <https://sublang.ai>
+
+# User-global mise configuration.
+# Add tools with: mise use -g <backend>:<package>
+# See: https://mise.jdx.dev/
+
+[settings]
+disable_backends = [
+  "aqua", "asdf", "cargo", "conda", "dotnet",
+  "forgejo", "gem", "gitlab", "go", "http",
+  "pipx", "s3", "spm", "ubi", "vfox",
+]

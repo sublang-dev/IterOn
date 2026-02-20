@@ -84,6 +84,13 @@ export async function startCommand(): Promise<void> {
     args.push(image, 'sleep', 'infinity');
     await podmanExec(args);
 
+    // Wait for container to accept exec sessions (podman run -d returns
+    // before the container reaches the Running state on some platforms)
+    for (let i = 0; i < 30; i++) {
+      if (await isContainerRunning(name)) break;
+      await new Promise(r => setTimeout(r, 100));
+    }
+
     // Reconcile user-local tool directory (survives volume overlay on upgrade)
     await podmanExec(['exec', name, 'mkdir', '-p', '/home/iteron/.local/bin']);
 

@@ -145,6 +145,37 @@ The sandbox image includes pre-configured settings that allow agents to run auto
 
 These configs are baked into the image. Since `/home/iteron` is backed by the `iteron-data` volume, agents can modify their own config files and changes persist across container restarts.
 
+## Tool Management
+
+Agent CLIs are managed by [mise](https://mise.jdx.dev/) — no manual installation needed. Baseline agents (Claude Code, Codex CLI, Gemini CLI, OpenCode) are preinstalled in the image and available on `PATH` via shims.
+
+### Installing additional tools
+
+Inside the container, install tools with:
+
+```bash
+mise use -g npm:<package>           # npm packages
+mise use -g github:<owner>/<repo>   # GitHub release binaries
+```
+
+Installed tools persist across container restarts (volume-backed at `~/.local/share/mise/`).
+
+### Upgrading tools
+
+```bash
+mise upgrade              # upgrade all tools to latest versions
+mise upgrade claude       # upgrade a specific tool
+```
+
+### After an image upgrade
+
+Preinstalled tools are copied to the persistent volume on first container start. After upgrading the sandbox image, run `mise install` inside the container to reconcile tool versions:
+
+```bash
+iteron open
+mise install     # downloads updated agent versions
+```
+
 ## Environment Variables
 
 All env vars in `~/.iteron/.env` are loaded into the container on `iteron start`. The full template:

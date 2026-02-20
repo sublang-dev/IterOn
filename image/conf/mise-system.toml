@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 SubLang International <https://sublang.ai>
+
+# Baseline agent CLIs — managed by mise, preinstalled during image build.
+# System config has higher precedence than user-global config (DR-004 §3),
+# so these declarations cannot be accidentally removed.
+
+[settings]
+lockfile = true
+disable_backends = [
+  "aqua", "asdf", "cargo", "conda", "dotnet",
+  "forgejo", "gem", "gitlab", "go", "http",
+  "pipx", "s3", "spm", "ubi", "vfox",
+]
+
+[tools]
+"npm:@anthropic-ai/claude-code" = "latest"
+"npm:@google/gemini-cli" = "latest"
+"npm:opencode-ai" = "latest"
+
+[tools."github:openai/codex"]
+version = "latest"
+version_prefix = "rust-v"
+rename_exe = "codex"

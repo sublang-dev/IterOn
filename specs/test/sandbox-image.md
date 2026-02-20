@@ -335,3 +335,32 @@ Where `iteron-sandbox:<tag>` is built, when the mouse-toggle
 prefix-key binding fires, `/etc/tmux.conf` shall write the
 updated `mouse` value to `~/.iteron-prefs` in `key=value` format
 ([SBD-023](../dev/sandbox-image.md#sbd-023)).
+
+## User-Space Tool Provisioning
+
+### SBT-046
+
+Where `iteron-sandbox:<tag>` is built, `mise --version` in the
+container shall exit 0 and print the pinned version
+([SBD-024](../dev/sandbox-image.md#sbd-024)).
+
+### SBT-047
+
+Where `iteron-sandbox:<tag>` is built, `/etc/mise/config.toml`
+shall declare `npm:@anthropic-ai/claude-code`,
+`npm:@google/gemini-cli`, `npm:opencode-ai`, and
+`github:openai/codex`
+([SBD-025](../dev/sandbox-image.md#sbd-025)).
+
+### SBT-048
+
+Where `iteron-sandbox:<tag>` is built, `/etc/mise/mise.lock`
+shall exist and contain version entries for all declared tools
+([SBD-026](../dev/sandbox-image.md#sbd-026)).
+
+### SBT-049
+
+Where `iteron-sandbox:<tag>` is built, `claude --version`,
+`codex --version`, `gemini --version`, and `opencode --version`
+shall each exit 0 via mise shims
+([SBD-027](../dev/sandbox-image.md#sbd-027)).

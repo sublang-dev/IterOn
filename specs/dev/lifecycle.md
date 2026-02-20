@@ -63,3 +63,13 @@ The sandbox image shall pre-seed `/etc/ssh/ssh_known_hosts` with
 GitHub and GitLab.com host keys and enforce `StrictHostKeyChecking yes`
 via `/etc/ssh/ssh_config.d/iteron.conf`
 ([DR-003 §2](../decisions/003-runtime-profiled-auth.md#2-local-profile)).
+
+## Tool Provisioning
+
+### LCD-007
+
+Agent CLIs are pre-installed in the sandbox image via mise and
+copied to the persistent volume on first mount. If tools become
+stale after an image upgrade the user may run `mise install`
+inside the container to reconcile
+([DR-004](../decisions/004-user-tool-provisioning.md)).

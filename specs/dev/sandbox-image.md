@@ -17,9 +17,9 @@ Where the local sandbox image is built, the Dockerfile shall use
 ### SBD-002
 
 Where agent runtimes are installed, the build shall install
-Claude Code, Gemini CLI, and OpenCode via npm and install Codex
-from a pinned standalone Linux musl release binary
-([DR-001 Context](../decisions/001-sandbox-architecture.md#context)).
+all agent CLIs via mise using npm and github backends
+([DR-001 Context](../decisions/001-sandbox-architecture.md#context),
+[DR-004 §3](../decisions/004-user-tool-provisioning.md)).
 
 ### SBD-003
 
@@ -116,9 +116,10 @@ credential file mapping
 ### SBD-014
 
 Where the image is built, the Dockerfile shall create
-`/home/iteron/.local/bin` owned by `iteron:iteron` and prepend it
-to `PATH` via `ENV`
-([DR-001 §6](../decisions/001-sandbox-architecture.md#6-user-local-tool-layer)).
+`/home/iteron/.local/bin` owned by `iteron:iteron` and set `PATH`
+to `~/.local/share/mise/shims:~/.local/bin:$PATH` via `ENV`
+([DR-001 §6](../decisions/001-sandbox-architecture.md#6-user-local-tool-layer),
+[DR-004 §3](../decisions/004-user-tool-provisioning.md)).
 
 ### SBD-015
 
@@ -188,3 +189,30 @@ format (one entry per line). This file lives on the
 `iteron-data` volume and survives container restarts and image
 updates. Image-level defaults (e.g., `/etc/tmux.conf`) read
 this file on startup to restore saved preferences.
+
+## User-Space Tool Provisioning
+
+### SBD-024
+
+Where the image is built, `mise` shall be installed at a pinned
+version and its binary shall be on `PATH`
+([DR-004 §2](../decisions/004-user-tool-provisioning.md)).
+
+### SBD-025
+
+Where the image is built, `/etc/mise/config.toml` shall declare
+all baseline agent CLIs and enforce a backend denylist allowing
+only `npm` and `github` backends
+([DR-004 §3, §8](../decisions/004-user-tool-provisioning.md)).
+
+### SBD-026
+
+Where the image is built, `/etc/mise/mise.lock` shall contain
+resolved versions for all declared baseline tools
+([DR-004 §6](../decisions/004-user-tool-provisioning.md)).
+
+### SBD-027
+
+Where the image is built, agent CLI binaries shall be invocable
+via mise shims on `PATH`
+([DR-004 §3](../decisions/004-user-tool-provisioning.md)).

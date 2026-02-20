@@ -136,6 +136,41 @@ iteron start
    ```
    Back up important workspace data before removing the volume.
 
+## Agent Binary Not Found After Image Upgrade
+
+**Symptom:** `claude`, `codex`, or another agent command is not found after upgrading the sandbox image.
+
+**Cause:** Agent CLIs are managed by mise and preinstalled in the image. After an image upgrade, the volume-backed home directory may not yet have the updated tool artifacts.
+
+**Fix:**
+
+1. Manually reconcile inside the container:
+   ```bash
+   iteron open
+   mise install
+   ```
+2. Or recreate the container to get a fresh volume copy from the image:
+   ```bash
+   iteron stop
+   podman volume rm iteron-data    # WARNING: deletes all workspace data
+   iteron start
+   ```
+
+## mise Install Fails During Start
+
+**Symptom:** `mise install` inside the container takes a long time or fails with network errors.
+
+**Cause:** `mise install` downloads tool artifacts from npm and GitHub, which requires network access.
+
+**Fix:**
+
+1. Check network connectivity inside the container:
+   ```bash
+   podman exec iteron-sandbox curl -fsSL https://registry.npmjs.org/
+   ```
+2. If behind a proxy, ensure proxy env vars are set in `~/.iteron/.env`
+3. Preinstalled tools from the image are usually sufficient — reconciliation is only needed after an image upgrade
+
 ## Read-Only Filesystem Errors
 
 **Symptom:** Commands inside the container fail with "Read-only file system".

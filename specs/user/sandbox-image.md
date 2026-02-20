@@ -104,3 +104,10 @@ environment variables shall remain usable
 Where a user places a standalone binary in `~/.local/bin` inside
 the container, the binary shall be found by name on `PATH`
 ([DR-001 §6](../decisions/001-sandbox-architecture.md#6-user-local-tool-layer)).
+
+### SBX-013
+
+Where a user runs `mise use -g <backend>:<package>` inside the
+container, the tool shall be installed and available on `PATH`
+via shims, persisting across container restarts
+([DR-004 §4](../decisions/004-user-tool-provisioning.md)).
