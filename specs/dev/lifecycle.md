@@ -69,9 +69,10 @@ via `/etc/ssh/ssh_config.d/iteron.conf`
 ### LCD-007
 
 Where `iteron start` launches the sandbox container, the command
-shall run `mise trust ~/.config/mise/config.toml` and
-`mise install` inside the container after the container reaches
-the running state. This reconciles tool artifacts against the
-declared manifests and rehydrates missing installs after image
-upgrades or volume migrations
-([DR-004 §5](../decisions/004-user-tool-provisioning.md)).
+shall attempt `mise trust` on both `/etc/mise/config.toml` and
+`~/.config/mise/config.toml`, then `mise install --locked` inside
+the container after the container reaches the running state.
+Reconciliation is best-effort: failures are logged as warnings but
+do not abort startup (tools are already present on fresh volumes).
+This rehydrates missing installs after image upgrades or volume
+migrations ([DR-004 §5](../decisions/004-user-tool-provisioning.md)).

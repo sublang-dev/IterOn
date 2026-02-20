@@ -70,11 +70,21 @@ across restarts.
 
 `iteron start` shall run reconciliation:
 
+- `mise trust /etc/mise/config.toml` \[10]
 - `mise trust ~/.config/mise/config.toml` \[10]
-- `mise install` (default, non-locked mode) \[5]\[11]
+- `mise install --locked` \[5]\[11]
 
-This is idempotent and rehydrates missing install artifacts after image
-upgrades or volume migrations.
+Trust state lives under `/home/iteron` (on the persistent volume) and may be
+empty on first start or stale after image upgrades, so both configs are
+re-trusted unconditionally. `--locked` is required because the container
+rootfs is read-only and the system lockfile at `/etc/mise/mise.lock` cannot be
+updated at runtime; locked mode reads it as-is. This is idempotent and
+rehydrates missing install artifacts after image upgrades or volume migrations.
+
+Reconciliation is best-effort: failures are logged as warnings but do not
+abort container startup. On a fresh volume the tools are already present
+(populated from the image), so reconciliation only matters after image
+upgrades when the volume has stale artifacts.
 
 ### 6. Locking and reproducibility
 
@@ -86,10 +96,11 @@ For the image-owned baseline config, the corresponding lockfile is
 `/etc/mise/mise.lock` \[17]; it is baked into the image layer and updated only
 on image rebuild.
 
-Strict locked mode (`MISE_LOCKED=1` / `--locked`) is opt-in and not enabled for
-default startup reconciliation, because fresh volumes may not yet contain
-pre-resolved lockfile URLs \[11]. To enable strict mode safely, populate the
-lockfile first with `mise lock` \[2].
+Startup reconciliation uses strict locked mode (`--locked`) because the
+container rootfs is read-only at runtime and the system lockfile cannot be
+regenerated \[11]. The system lockfile is always available (baked into the
+image), and the user-global config is an empty template with no tools to
+resolve, so `--locked` is safe even on fresh volumes.
 
 ### 7. Sync boundaries for future AWS profile
 

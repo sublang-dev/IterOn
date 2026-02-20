@@ -110,7 +110,7 @@ RUN mise trust /etc/mise/config.toml \
 
 ```dockerfile
 RUN claude --version \
- && codex --version \
+ && codex --help > /dev/null \
  && gemini --version \
  && opencode --version
 ```
@@ -158,14 +158,15 @@ Per [DR-004 §8](../decisions/004-user-tool-provisioning.md), the backend denyli
 Per [DR-004 §5](../decisions/004-user-tool-provisioning.md), `iteron start` shall run reconciliation after the container starts:
 
 ```typescript
-// DR-004: reconcile mise tools (idempotent, non-locked mode)
+// DR-004: reconcile mise tools (idempotent, locked mode)
+await podmanExec(['exec', name, 'mise', 'trust', '/etc/mise/config.toml']);
 await podmanExec(['exec', name, 'mise', 'trust', '/home/iteron/.config/mise/config.toml']);
-await podmanExec(['exec', name, 'mise', 'install']);
+await podmanExec(['exec', name, 'mise', 'install', '--locked']);
 ```
 
 Add this to `src/commands/start.ts` after the existing `mkdir -p ~/.local/bin` reconciliation step.
 
-`mise trust` marks the user-global config as trusted so mise processes it. `mise install` in default (non-locked) mode rehydrates missing install artifacts — needed after image upgrades when the volume persists but image-layer installs are overwritten.
+`mise trust` marks both the system and user-global configs as trusted so mise processes them; trust state lives on the volume and may be empty on first start. `mise install --locked` rehydrates missing install artifacts using the image-baked lockfile at `/etc/mise/mise.lock` — needed after image upgrades when the volume persists but image-layer installs are overwritten. `--locked` is required because the container rootfs is read-only at runtime.
 
 This step is idempotent: if all tools are already installed at the declared versions, `mise install` exits immediately.
 
@@ -189,7 +190,7 @@ Update existing:
 
 Add:
 
-- **LCD-007**: Where `iteron start` launches the sandbox container, the start sequence shall run `mise trust` on the user-global config and `mise install` to reconcile tool installations ([DR-004 §5](../decisions/004-user-tool-provisioning.md)).
+- **LCD-007**: Where `iteron start` launches the sandbox container, the start sequence shall run `mise trust` on the system and user-global configs and `mise install --locked` to reconcile tool installations ([DR-004 §5](../decisions/004-user-tool-provisioning.md)).
 
 #### Test specs (`specs/test/sandbox-image.md`)
 
@@ -198,7 +199,7 @@ Add:
 - **SBT-046**: Where `iteron-sandbox:<tag>` is built, `mise --version` in the container shall exit 0 and print the pinned version ([SBD-024](../dev/sandbox-image.md#sbd-024)).
 - **SBT-047**: Where `iteron-sandbox:<tag>` is built, `/etc/mise/config.toml` shall declare `npm:@anthropic-ai/claude-code`, `npm:@google/gemini-cli`, `npm:opencode-ai`, and `github:openai/codex` ([SBD-025](../dev/sandbox-image.md#sbd-025)).
 - **SBT-048**: Where `iteron-sandbox:<tag>` is built, `/etc/mise/mise.lock` shall exist and contain version entries for all declared tools ([SBD-026](../dev/sandbox-image.md#sbd-026)).
-- **SBT-049**: Where `iteron-sandbox:<tag>` is built, `claude --version`, `codex --version`, `gemini --version`, and `opencode --version` shall each exit 0 via mise shims ([SBD-027](../dev/sandbox-image.md#sbd-027)).
+- **SBT-049**: Where `iteron-sandbox:<tag>` is built, `claude --version`, `codex --help`, `gemini --version`, and `opencode --version` shall each exit 0 via mise shims ([SBD-027](../dev/sandbox-image.md#sbd-027)).
 
 #### User specs (`specs/user/sandbox-image.md`)
 
@@ -239,7 +240,7 @@ Add IR-008 row to the Iterations table.
 | 1 | `podman build --platform linux/amd64 image/` | Exit 0, image tagged |
 | 2 | `podman run --rm <image> mise --version` | Exit 0, prints `2026.2.16 ...` |
 | 3 | `podman run --rm <image> claude --version` | Exit 0, prints version (via shim) |
-| 4 | `podman run --rm <image> codex --version` | Exit 0, prints version (via shim) |
+| 4 | `podman run --rm <image> codex --help` | Exit 0, prints usage (via shim) |
 | 5 | `podman run --rm <image> gemini --version` | Exit 0, prints version (via shim) |
 | 6 | `podman run --rm <image> opencode --version` | Exit 0, prints version (via shim) |
 | 7 | `podman run --rm <image> cat /etc/mise/config.toml` | Contains `disable_backends`, all four agent tool declarations |

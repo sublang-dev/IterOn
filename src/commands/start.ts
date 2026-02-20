@@ -112,8 +112,20 @@ export async function startCommand(): Promise<void> {
       // Seed user-global mise config if absent (pre-IR-008 volumes lack it).
       await podmanExec(['exec', name, 'sh', '-c',
         'test -f ~/.config/mise/config.toml || { mkdir -p ~/.config/mise && touch ~/.config/mise/config.toml; }']);
-      await podmanExec(['exec', name, 'mise', 'trust', '/home/iteron/.config/mise/config.toml']);
-      await podmanExec(['exec', name, 'mise', 'install']);
+      // DR-004 §5: reconcile mise tools. Non-fatal because tools are already
+      // on the volume (populated from the image on first use). Reconciliation
+      // only matters after image upgrades when the volume has stale artifacts.
+      try {
+        await podmanExec(['exec', '-e', 'MISE_VERBOSE=1', name,
+          'mise', 'trust', '/etc/mise/config.toml']);
+        await podmanExec(['exec', '-e', 'MISE_VERBOSE=1', name,
+          'mise', 'trust', '/home/iteron/.config/mise/config.toml']);
+        // --locked: use the image's lockfile read-only (rootfs is read-only at runtime).
+        await podmanExec(['exec', '-e', 'MISE_VERBOSE=1', name,
+          'mise', 'install', '--locked']);
+      } catch (miseErr) {
+        console.warn(`Warning: mise reconciliation failed: ${podmanErrorMessage(miseErr)}`);
+      }
     }
 
     // DR-003 §2: reconcile managed SSH config in container

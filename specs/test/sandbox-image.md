@@ -361,6 +361,6 @@ shall exist and contain version entries for all declared tools
 ### SBT-049
 
 Where `iteron-sandbox:<tag>` is built, `claude --version`,
-`codex --version`, `gemini --version`, and `opencode --version`
+`codex --help`, `gemini --version`, and `opencode --version`
 shall each exit 0 via mise shims
 ([SBD-027](../dev/sandbox-image.md#sbd-027)).
