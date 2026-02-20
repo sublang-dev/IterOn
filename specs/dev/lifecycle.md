@@ -68,8 +68,10 @@ via `/etc/ssh/ssh_config.d/iteron.conf`
 
 ### LCD-007
 
-Agent CLIs are pre-installed in the sandbox image via mise and
-copied to the persistent volume on first mount. If tools become
-stale after an image upgrade the user may run `mise install`
-inside the container to reconcile
-([DR-004](../decisions/004-user-tool-provisioning.md)).
+Where `iteron start` launches the sandbox container, the command
+shall run `mise trust ~/.config/mise/config.toml` and
+`mise install` inside the container after the container reaches
+the running state. This reconciles tool artifacts against the
+declared manifests and rehydrates missing installs after image
+upgrades or volume migrations
+([DR-004 §5](../decisions/004-user-tool-provisioning.md)).

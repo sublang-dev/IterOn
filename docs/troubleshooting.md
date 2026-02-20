@@ -140,27 +140,31 @@ iteron start
 
 **Symptom:** `claude`, `codex`, or another agent command is not found after upgrading the sandbox image.
 
-**Cause:** Agent CLIs are managed by mise and preinstalled in the image. After an image upgrade, the volume-backed home directory may not yet have the updated tool artifacts.
+**Cause:** Agent CLIs are managed by mise and preinstalled in the image. `iteron start` runs `mise install` to reconcile tools, but the reconciliation may have failed (e.g., network issue during start).
 
 **Fix:**
 
-1. Manually reconcile inside the container:
+1. Restart the container — `iteron start` will re-run reconciliation:
+   ```bash
+   iteron stop && iteron start
+   ```
+2. Or reconcile manually inside the container:
    ```bash
    iteron open
    mise install
    ```
-2. Or recreate the container to get a fresh volume copy from the image:
+3. As a last resort, recreate the volume for a fresh copy from the image:
    ```bash
    iteron stop
    podman volume rm iteron-data    # WARNING: deletes all workspace data
    iteron start
    ```
 
-## mise Install Fails During Start
+## mise Install Slow or Fails During Start
 
-**Symptom:** `mise install` inside the container takes a long time or fails with network errors.
+**Symptom:** `iteron start` takes a long time or fails with network errors during the `mise install` reconciliation step.
 
-**Cause:** `mise install` downloads tool artifacts from npm and GitHub, which requires network access.
+**Cause:** `mise install` downloads tool artifacts from npm and GitHub when they are missing. When tools are already present, this step is typically fast with minimal or no downloads.
 
 **Fix:**
 
@@ -169,7 +173,7 @@ iteron start
    podman exec iteron-sandbox curl -fsSL https://registry.npmjs.org/
    ```
 2. If behind a proxy, ensure proxy env vars are set in `~/.iteron/.env`
-3. Preinstalled tools from the image are usually sufficient — reconciliation is only needed after an image upgrade
+3. If network is unavailable, tools preinstalled in the image are usually already on the volume — reconciliation only downloads when artifacts are missing
 
 ## Read-Only Filesystem Errors
 

@@ -167,14 +167,9 @@ mise upgrade              # upgrade all tools to latest versions
 mise upgrade claude       # upgrade a specific tool
 ```
 
-### After an image upgrade
+### Reconciliation on start
 
-Preinstalled tools are copied to the persistent volume on first container start. After upgrading the sandbox image, run `mise install` inside the container to reconcile tool versions:
-
-```bash
-iteron open
-mise install     # downloads updated agent versions
-```
+Each `iteron start` runs `mise install` inside the container, which reconciles installed tool artifacts against the declared manifests. This is idempotent and fast when tools are already present — it only downloads when artifacts are missing (e.g., after an image upgrade or volume migration).
 
 ## Environment Variables
 
